@@ -91,6 +91,7 @@ const BillPage = () => {
       <Box p={2}>
         <h1>Bill Management</h1>
 
+        {/* Search component with Add Bill button */}
         <Search
           onSearch={(term) => setSearchTerm(term)}
           onAddClick={() => setCreateOpen(true)}
@@ -154,7 +155,7 @@ const BillPage = () => {
           </TableContainer>
         </Paper>
 
-        {/* Create Modal/Dialog */}
+        {/* Create Dialog modal */}
         {createOpen && (
           <Create
             onClose={() => setCreateOpen(false)}
@@ -162,23 +163,10 @@ const BillPage = () => {
               handleCreate(newBill);
               setCreateOpen(false);
             }}
-            PaperProps={{
-              style: {
-                margin: 0,
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                maxWidth: "600px",
-                width: "90%",
-                padding: "20px",
-              },
-            }}
           />
         )}
 
-        {/* View, Edit and Delete modals can be added here similarly */}
-
+        {/* View, Edit, Delete dialogs - add as needed */}
       </Box>
     </Layout>
   );
