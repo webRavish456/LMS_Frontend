@@ -1,58 +1,55 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { ChevronDown } from "lucide-react";
 import Menuitems from "./MenuItems";
 
 const Sidebar = () => {
   const pathname = usePathname();
-  const router = useRouter();
-
-  const [activeIndex, setActiveIndex] = useState(null);
-  const [activeSubItem, setActiveSubItem] = useState(null);
+  const [openSubmenu, setOpenSubmenu] = useState(null);
 
   useEffect(() => {
-    const firstPath = "/" + pathname.split("/")[1];
-
-    let activeModuleIndex = null;
-    let activeSubModule = null;
-
-    Menuitems.forEach((item, index) => {
-      if (item.href.startsWith(firstPath)) {
-        activeModuleIndex = index;
-        if (item.items) {
-          const matchedSub = item.items.find((sub) => sub.href === pathname);
-          if (matchedSub) {
-            activeSubModule = matchedSub.href;
-          }
-        }
-      }
-    });
-
-    setActiveIndex(activeModuleIndex);
-    setActiveSubItem(activeSubModule);
+    const activeParent = Menuitems.find(
+      (item) =>
+        item.href === pathname ||
+        (item.items && item.items.some((sub) => sub.href === pathname))
+    );
+    if (activeParent && activeParent.items) {
+      setOpenSubmenu(activeParent.label);
+    }
   }, [pathname]);
 
-  const toggleMenu = (index, item) => {
-    if (item.items) {
-      setActiveIndex(activeIndex === index ? null : index);
-      if (activeIndex !== index) {
-        router.push(item.href);
-        const firstSub = item.items[0].href;
-        setActiveSubItem(firstSub);
-      }
-    } else {
-      setActiveIndex(index);
-      setActiveSubItem(null);
-    }
+  const handleToggleSubmenu = (label) => {
+    setOpenSubmenu(openSubmenu === label ? null : label);
+  };
+
+  // ✅ FIXED: Safe icon rendering
+  const renderIcon = (icon) => {
+    if (!icon || typeof icon !== "string") return null;
+
+    // Ensure the path starts with "/" if not absolute URL
+    const validSrc =
+      icon.startsWith("/") || icon.startsWith("http")
+        ? icon
+        : `/${icon}`;
+
+    return (
+      <Image
+        src={validSrc}
+        alt="icon"
+        width={20}
+        height={20}
+        className="menu-icon"
+      />
+    );
   };
 
   return (
     <aside
-      className="sidebar"
+      className="sidebar transition-transform duration-300 ease-in-out"
       style={{
         position: "fixed",
         top: 0,
@@ -66,10 +63,14 @@ const Sidebar = () => {
         padding: "10px 0",
       }}
     >
-      <div className="sidebar-header" style={{ padding: "0 20px", marginBottom: "20px" }}>
+      {/* Sidebar Header */}
+      <div
+        className="sidebar-header"
+        style={{ padding: "0 20px", marginBottom: "20px" }}
+      >
         <div className="logo">
           <Image
-            src="/logo.png"
+            src="/logo.png" // ✅ make sure this exists in /public/logo.png
             alt="VED VENTURING DIGITALLY"
             width={180}
             height={40}
@@ -78,16 +79,24 @@ const Sidebar = () => {
         </div>
       </div>
 
-      <nav className="menu-container" style={{ paddingLeft: "10px", paddingRight: "10px" }}>
-        {Menuitems.map((item, index) => {
-          const isActive = activeIndex === index;
+      {/* Sidebar Menu */}
+      <nav
+        className="menu-container"
+        style={{ paddingLeft: "10px", paddingRight: "10px" }}
+      >
+        {Menuitems.map((item) => {
+          const hasSubmenu = !!item.items;
+          const isActive =
+            pathname === item.href ||
+            (hasSubmenu && openSubmenu === item.label);
+          const isLinkActive = pathname === item.href;
 
           return (
-            <div key={index} className="menu-item" style={{ marginBottom: "8px" }}>
-              {item.items ? (
-                <div
-                  className={`menu-link ${isActive ? "active" : ""}`}
-                  onClick={() => toggleMenu(index, item)}
+            <div key={item.label} className="menu-item" style={{ marginBottom: "8px" }}>
+              {hasSubmenu ? (
+                <button
+                  className={`menu-link w-full text-left ${isActive ? "active" : ""}`}
+                  onClick={() => handleToggleSubmenu(item.label)}
                   style={{
                     cursor: "pointer",
                     display: "flex",
@@ -99,43 +108,38 @@ const Sidebar = () => {
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    {item.icon && (
-                      <Image
-                        src={item.icon}
-                        alt={item.label}
-                        width={20}
-                        height={20}
-                        className="menu-icon"
-                      />
-                    )}
+                    {renderIcon(item.icon)}
                     <span className="menu-label">{item.label}</span>
                   </div>
-                  <ChevronDown className={`menu-arrow ${isActive ? "active" : ""}`} />
-                </div>
+                  <ChevronDown
+                    className={`menu-arrow transition-transform duration-200 ${
+                      openSubmenu === item.label ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
               ) : (
                 <Link
                   href={item.href}
-                  className={`menu-link ${isActive ? "active" : ""}`}
+                  className={`menu-link ${isLinkActive ? "active" : ""}`}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     padding: "8px 12px",
-                    backgroundColor: isActive ? "#003366" : "transparent",
+                    backgroundColor: isLinkActive ? "#003366" : "transparent",
                     borderRadius: "4px",
                     textDecoration: "none",
                     color: "inherit",
                   }}
                 >
-                  {item.icon && (
-                    <Image src={item.icon} alt={item.label} width={20} height={20} className="menu-icon" />
-                  )}
+                  {renderIcon(item.icon)}
                   <span className="menu-label" style={{ marginLeft: "8px" }}>
                     {item.label}
                   </span>
                 </Link>
               )}
 
-              {item.items && isActive && (
+              {/* Submenu */}
+              {hasSubmenu && openSubmenu === item.label && (
                 <div
                   className="submenu"
                   style={{
@@ -146,22 +150,24 @@ const Sidebar = () => {
                     gap: "6px",
                   }}
                 >
-                  {item.items.map((subItem, subIndex) => (
-                    <Link
-                      key={subIndex}
-                      href={subItem.href}
-                      className={`submenu-link ${activeSubItem === subItem.href ? "active" : ""}`}
-                      onClick={() => setActiveSubItem(subItem.href)}
-                      style={{
-                        textDecoration: "none",
-                        color: activeSubItem === subItem.href ? "#00bcd4" : "white",
-                        padding: "6px 8px",
-                        borderRadius: "3px",
-                      }}
-                    >
-                      <span>{subItem.label}</span>
-                    </Link>
-                  ))}
+                  {item.items.map((subItem) => {
+                    const isSubActive = pathname === subItem.href;
+                    return (
+                      <Link
+                        key={subItem.label}
+                        href={subItem.href}
+                        className={`submenu-link ${isSubActive ? "active" : ""}`}
+                        style={{
+                          textDecoration: "none",
+                          color: isSubActive ? "#00bcd4" : "white",
+                          padding: "6px 8px",
+                          borderRadius: "3px",
+                        }}
+                      >
+                        <span>{subItem.label}</span>
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </div>

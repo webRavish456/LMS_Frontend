@@ -124,6 +124,7 @@ const Menuitems = [
     label: "Payroll",
     href: "/payroll",
   },
+  
   {
     icon: "/sidebar/videoclass.png",
     label: "Video Class",
@@ -138,6 +139,12 @@ const Menuitems = [
         href: "/video-class/recorded-class",
       },
     ],
+  },
+
+  {
+   icon:"/sidebar/certificate.png",
+   label:"certificate",
+   href:"/certificate",
   },
   
   {
@@ -166,6 +173,74 @@ const Menuitems = [
 
 },
 
+{
+  icon:"/sidebar/chating.png",
+  label:"Chating",
+  href:"/chating",
+
+},
+{
+  icon:"/sidebar/payment.png",
+  label:"Payment",
+  href:"/payment",
+},
+{
+  icon:"/sidebar/content.png",
+  label:"Content-authoring",
+  href:"/content-authoring",
+},
+{
+  icon:"/sidebar/report.png",
+  label:"Report",
+  href:"/report",
+},
+{
+icon:"/sidebar/compilance.png",
+label:"Compilance",
+href:"/compilance",
+},
+{
+icon:"/sidebar/api.png",
+label:"Integration",
+href:"/integration",
+},
+{
+  icon:"/sidebar/notification.png",
+  label:"Notification",
+  href:"/notification",
+},
+
+
+{
+icon:"/sidebar/classroom.png",
+label:"ClassRoom",
+href:"/classroom",
+},
+{
+icon:"/sidebar/management.png",
+label:"AlumniManagement",
+href:"/alumnimanagement",
+},
+{
+icon:"/sidebar/lrs.png",
+label:"lrs-support",
+href:"/lrs-support",
+},
+{
+icon:"sidebar/adaptive.png",
+label:"Adaptive-Learning",
+href:"/adaptive-learning",
+},
+{
+icon:"/sidebar/language.png",
+label:"Language",
+href:"/language",
+},
+{
+icon:"/sidebar/feedback.png",
+label:"Feedback",
+href:"/feedback",
+},
   
   
   {
@@ -179,6 +254,7 @@ const Menuitems = [
     label: "Results",
     href: "/result",
   },
+
 ];
 
 

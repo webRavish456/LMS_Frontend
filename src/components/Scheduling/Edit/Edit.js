@@ -1,303 +1,173 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import {
-  TextField,
-  Grid,
-  useMediaQuery,
-  Button,
   Box,
-  CircularProgress,
+  TextField,
+  Button,
   MenuItem,
+  Grid,
+  CircularProgress,
 } from "@mui/material";
-import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
-import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 import Cookies from "js-cookie";
-import moment from 'moment'; 
+import { toast } from "react-toastify";
 
-
-const schema = yup.object().shape({
-  courseName: yup.string().required("Course Name is required"),
-  teacherName: yup.string().required("Teacher Name is required"),
-  startTiming: yup
-  .string()
-  .required("Start Timing is required")
-  .test('startBeforeEnd', 'Start time must be earlier than end time', function (value) {
-    const { lastTiming } = this.parent;
-    if (value && lastTiming) {
-      return value < lastTiming;
-    }
-    return true; 
-  }),
-  lastTiming: yup
-    .string()
-    .required("Last Timing is required")
-    .test('endAfterStart', 'End time must be later than start time', function (value) {
-      const { startTiming } = this.parent;
-      if (value && startTiming) {
-        return value > startTiming;
-      }
-      return true;
-    }),
-  workDays: yup.string().required("Work Days is required"),
-  status: yup.string(),
-});
-
-const EditScheduling = ({ handleUpdate, editData, handleClose }) => {
-  const isSmScreen = useMediaQuery("(max-width:768px)");
-
-  const token = Cookies.get("token");
-
-  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
-
-  const [loading, setLoading] = useState(false);
-  const [teacherName, setTeacherName] = useState([]);
-  const [loadingData, setLoadingData] = useState(true);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm({
-    resolver: yupResolver(schema),
+const EditSchedule = ({ editData, handleUpdate, handleClose }) => {
+  const [formData, setFormData] = useState({
+    scheduleId: editData?.scheduleId || "",
+    courseId: editData?.courseId || "",
+    teacherId: editData?.teacherId || "",
+    startTime: editData?.startTime
+      ? new Date(editData.startTime).toISOString().slice(0, 16)
+      : "",
+    endTime: editData?.endTime
+      ? new Date(editData.endTime).toISOString().slice(0, 16)
+      : "",
+    status: editData?.status?.props?.label || editData?.status || "Scheduled",
   });
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const token = Cookies.get("token");
+  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
-  const convertTo24HourFormat = (time) => {
-    if (typeof time !== "string" || !time.includes(":")) {
-      console.error("Invalid time format:", time);
-      return "";
-    }
-
-    const [hours, minutes] = time.split(":");
-    const ampm = time.slice(-2); 
-
-    let hour = parseInt(hours, 10);
-
-    if (ampm === "PM" && hour !== 12) {
-      hour += 12;
-    } else if (ampm === "AM" && hour === 12) {
-      hour = 0;
-    }
-
-    return `${hour.toString().padStart(2, "0")}:${minutes.slice(0, 2)}`;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  useEffect(() => {
-    if (editData) {
-      const startTiming24Hour = convertTo24HourFormat(editData.startTiming);
-      const lastTiming24Hour = convertTo24HourFormat(editData.lastTiming);
+    if (
+      !formData.courseId ||
+      !formData.teacherId ||
+      !formData.startTime ||
+      !formData.endTime
+    ) {
+      toast.warning("Please fill all required fields!");
+      return;
+    }
 
-     reset({
-        courseName: editData.courseName || "",
-        teacherName: editData.teacherName || "",
-        startTiming: startTiming24Hour || "",
-        lastTiming: lastTiming24Hour || "",
-        workDays: editData.workDays || "",
-        status: editData.status || "",
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`${Base_url}/schedule/${editData._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
       });
-    }
-  }, [editData, reset]);
 
-  
+      const res = await response.json();
 
-
-  useEffect(() => {
-    const fetchTeacherData = async () => {
-      try {
-        const response = await fetch(`${Base_url}/teacher`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const result = await response.json();
-        if (result.status === "success") {
-          setTeacherName(result.data);
-          setLoadingData(false);
-        }
-      } catch (error) {
-        console.error("Error fetching course data:", error);
+      if (res.status === "success") {
+        toast.success("Schedule updated successfully!");
+        handleUpdate();
+        handleClose();
+      } else {
+        toast.error(res.message || "Failed to update schedule.");
       }
-    };
-
-    if (loadingData) {
-      fetchTeacherData();
+    } catch (error) {
+      console.error("Error updating schedule:", error);
+      toast.error("Something went wrong!");
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [loadingData]);
-
-  const onSubmit = (data) => {
-
-
-    setLoading(true);
-
-    let startTime = moment(data.startTiming, ["HH:mm", "hh:mm A"]).format("hh:mm A");
-    let lastTime = moment(data.lastTiming, ["HH:mm", "hh:mm A"]).format("hh:mm A");
-
-    const formdata = new FormData();
-    formdata.append("courseName", data.courseName);
-    formdata.append("teacherName", data.teacherName);
-    formdata.append("startTiming", startTime);
-    formdata.append("lastTiming", lastTime);
-    formdata.append("workDays", data.workDays);
-    formdata.append("status", data.status);
-
-    const requestOptions = {
-      method: "PATCH",
-      body: formdata,
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    };
-
-    fetch(`${Base_url}/timetable/${editData._id}`, requestOptions)
-      .then((response) => response.text())
-      .then((result) => {
-        const res = JSON.parse(result);
-
-        if (res.status === "success") {
-          setLoading(false);
-          toast.success("Scheduling Updated Successfully!");
-          handleUpdate(true);
-          handleClose();
-          reset();
-        } else {
-          setLoading(false);
-          toast.error(res.message);
-        }
-      })
-      .catch((error) => console.error(error));
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <Grid container columnSpacing={2}>
-        <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}}>
+    <Box component="form" onSubmit={handleSubmit} sx={{ p: 2 }}>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
           <TextField
-            label={
-              <>
-                Course Name <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-              </>
-            }
-            type="text"
-            {...register("courseName")}
-            error={!!errors.courseName}
+            label="Schedule ID"
+            name="scheduleId"
+            value={formData.scheduleId}
             fullWidth
-            margin="normal"
+            disabled
           />
-          <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-            {errors.courseName?.message}
-          </div>
         </Grid>
 
-        <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}}>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            label="Course ID"
+            name="courseId"
+            value={formData.courseId}
+            onChange={handleChange}
+            fullWidth
+            required
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <TextField
+            label="Teacher ID"
+            name="teacherId"
+            value={formData.teacherId}
+            onChange={handleChange}
+            fullWidth
+            required
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <TextField
+            label="Start Time"
+            name="startTime"
+            type="datetime-local"
+            value={formData.startTime}
+            onChange={handleChange}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
+            required
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <TextField
+            label="End Time"
+            name="endTime"
+            type="datetime-local"
+            value={formData.endTime}
+            onChange={handleChange}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
+            required
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
           <TextField
             select
-            label={
-              <>
-                Teacher Name <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-              </>
-            }
-            defaultValue={editData.teacherName}
-            variant="outlined"
-            {...register("teacherName")}
-            error={!!errors.teacherName}
+            label="Status"
+            name="status"
+            value={formData.status}
+            onChange={handleChange}
             fullWidth
-            margin="normal"
           >
-            {teacherName.map((teacher, index) => (
-              <MenuItem key={index} value={teacher.teacherName}>
-                {teacher.teacherName}
-              </MenuItem>
-            ))}
+            <MenuItem value="Scheduled">Scheduled</MenuItem>
+            <MenuItem value="Rescheduled">Rescheduled</MenuItem>
+            <MenuItem value="Cancelled">Cancelled</MenuItem>
           </TextField>
-          <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-            {errors.teacherName?.message}
-          </div>
-        </Grid>
-
-        <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}}>
-          <TextField
-            InputLabelProps={{ shrink: true }}
-            label={
-              <>
-                Starting Timing <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-              </>
-            }
-            type="time"
-            {...register("startTiming")}
-            error={!!errors.startTiming}
-            fullWidth
-            margin="normal"
-          />
-          <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-            {errors.startTiming?.message}
-          </div>
-        </Grid>
-
-        <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}}>
-          <TextField
-            InputLabelProps={{ shrink: true }}
-            label={
-              <>
-                Last Timing <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-              </>
-            }
-            type="time"
-            {...register("lastTiming")}
-            error={!!errors.lastTiming}
-            fullWidth
-            margin="normal"
-          />
-          <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-            {errors.lastTiming?.message}
-          </div>
-        </Grid>
-
-          <Grid size={{xs:12}}>
-          <TextField
-            label={
-              <>
-                Work Days <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-              </>
-            }
-            type="text"
-            {...register("workDays")}
-            error={!!errors.workDays}
-            fullWidth
-            margin="normal"
-          />
-          <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-            {errors.workDays?.message}
-          </div>
         </Grid>
       </Grid>
 
-      <Box
-        className="submit"
-        sx={{ display: "flex", justifyContent: "flex-end", gap: "15px", margin: "20px 0px" }}
-      >
-        <Button onClick={handleClose} className="secondary_button">
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3, gap: 2 }}>
+        <Button onClick={handleClose} variant="outlined" color="secondary">
           Cancel
         </Button>
-        <Button type="submit" className="primary_button">
-          {loading ? (
-            <>
-              <CircularProgress size={18} style={{ marginRight: 8, color: "#fff" }} />
-              Updating
-            </>
-          ) : (
-            "Update"
-          )}
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? <CircularProgress size={24} /> : "Update"}
         </Button>
       </Box>
-    </form>
+    </Box>
   );
 };
 
-export default EditScheduling;
+export default EditSchedule;

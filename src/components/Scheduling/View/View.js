@@ -1,90 +1,118 @@
-'use client'
+"use client";
 
-import React from "react"
-import { Box, Grid, useMediaQuery } from "@mui/material";
+import React from "react";
+import {
+  Box,
+  Grid,
+  Typography,
+  Divider,
+  Button,
+  Chip,
+} from "@mui/material";
 
-const ViewScheduling = ({viewData}) => {
-    const isSmScreen = useMediaQuery("(max-width:768px)");
+const ViewSchedule = ({ viewData, handleClose }) => {
+  if (!viewData) return null;
 
-    return (
-        <>
-            <Grid container columnSpacing={2} rowSpacing={1}>
+  return (
+    <Box sx={{ p: 2, minWidth: 400 }}>
+      <Typography variant="h6" gutterBottom>
+        Schedule Details
+      </Typography>
+      <Divider sx={{ mb: 2 }} />
 
-                <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}} style={{ display: "flex" }}>
+      <Grid container spacing={2}>
+        <Grid item xs={6}>
+          <Typography variant="subtitle2" color="textSecondary">
+            Schedule ID
+          </Typography>
+          <Typography variant="body1">{viewData.scheduleId}</Typography>
+        </Grid>
 
-                    <Grid size={{xs:6}}>
-                        <Box className="pageTitle">Course Name:</Box>
-                    </Grid>
-                    <Grid size={{xs:6}}>
-                        <Box className="pageDescription">{viewData.courseName}</Box>
-                    </Grid>
+        <Grid item xs={6}>
+          <Typography variant="subtitle2" color="textSecondary">
+            Course ID
+          </Typography>
+          <Typography variant="body1">{viewData.courseId}</Typography>
+        </Grid>
 
-                </Grid>
+        <Grid item xs={6}>
+          <Typography variant="subtitle2" color="textSecondary">
+            Teacher ID
+          </Typography>
+          <Typography variant="body1">{viewData.teacherId}</Typography>
+        </Grid>
 
-                <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}} style={{ display: "flex" }}>
+        <Grid item xs={6}>
+          <Typography variant="subtitle2" color="textSecondary">
+            Start Time
+          </Typography>
+          <Typography variant="body1">
+            {new Date(viewData.startTime).toLocaleString()}
+          </Typography>
+        </Grid>
 
-                    <Grid size={{xs:6}}>
-                        <Box className="pageTitle">Teacher Name:</Box>
-                    </Grid>
-                    <Grid size={{xs:6}}>
-                        <Box className="pageDescription">{viewData.teacherName}</Box>
-                    </Grid>
-                </Grid>
+        <Grid item xs={6}>
+          <Typography variant="subtitle2" color="textSecondary">
+            End Time
+          </Typography>
+          <Typography variant="body1">
+            {new Date(viewData.endTime).toLocaleString()}
+          </Typography>
+        </Grid>
 
-                <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}} style={{ display: "flex" }}>
+        <Grid item xs={6}>
+          <Typography variant="subtitle2" color="textSecondary">
+            Status
+          </Typography>
+          <Chip
+            label={viewData.status?.props?.label || viewData.status}
+            color={
+              viewData.status === "Cancelled"
+                ? "error"
+                : viewData.status === "Rescheduled"
+                ? "warning"
+                : "success"
+            }
+            size="small"
+          />
+        </Grid>
 
-                    <Grid size={{xs:6}}>
-                        <Box className="pageTitle">Starting Timing:</Box>
-                    </Grid>
-                    <Grid size={{xs:6}}>
-                        <Box className="pageDescription">{viewData.startTiming}</Box>
-                    </Grid>
+        {viewData.createdAt && (
+          <Grid item xs={6}>
+            <Typography variant="subtitle2" color="textSecondary">
+              Created At
+            </Typography>
+            <Typography variant="body1">
+              {new Date(viewData.createdAt).toLocaleString()}
+            </Typography>
+          </Grid>
+        )}
 
-                </Grid>
+        {viewData.updatedAt && (
+          <Grid item xs={6}>
+            <Typography variant="subtitle2" color="textSecondary">
+              Updated At
+            </Typography>
+            <Typography variant="body1">
+              {new Date(viewData.updatedAt).toLocaleString()}
+            </Typography>
+          </Grid>
+        )}
+      </Grid>
 
-                <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}} style={{ display: "flex" }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "flex-end",
+          mt: 3,
+        }}
+      >
+        <Button variant="outlined" color="secondary" onClick={handleClose}>
+          Close
+        </Button>
+      </Box>
+    </Box>
+  );
+};
 
-                    <Grid size={{xs:6}}>
-                        <Box className="pageTitle">Last Timing:</Box>
-                    </Grid>
-
-                    <Grid size={{xs:6}}>
-                        <Box className="pageDescription">{viewData.lastTiming}</Box>
-                    </Grid>
-
-                </Grid>
-
-                <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}} style={{ display: "flex" }}>
-
-                    <Grid size={{xs:6}}>
-                        <Box className="pageTitle">Work Days:</Box>
-                    </Grid>
-
-                    <Grid size={{xs:6}}>
-                        <Box className="pageDescription">{viewData.workDays}</Box>
-                    </Grid>
-
-                </Grid>
-
-
-                <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}} style={{ display: "flex" }}>
-
-                    <Grid size={{xs:6}}>
-                        <Box className="pageTitle">Status:</Box>
-                    </Grid>
-
-                        <Grid size={{xs:6}}>
-                        <Box className="pageDescription">{viewData.status}</Box>
-                    </Grid>
-
-                </Grid>
-
-
-
-            </Grid>
-
-        </>
-    )
-}
-
-export default ViewScheduling;
+export default ViewSchedule;
