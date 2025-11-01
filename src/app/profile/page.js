@@ -1,7 +1,7 @@
 'use client'
 
 import React , { useEffect, useState } from "react";
-import CreateProfile from "@/components/Profile/Profile/Create/Create";
+import CreateProfile from "@/components/Profile/Create/Create";
 
 import {
   Card,
@@ -20,7 +20,7 @@ import {
   
 } from "@mui/material";
 import Cookies from "js-cookie";
-import EditProfile from "@/components/Profile/Profile/Edit/Edit";
+import EditProfile from "@/components/Profile/Edit/Edit";
 import CommonDialog from "@/components/CommonDialog/CommonDialog";
 import {ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
