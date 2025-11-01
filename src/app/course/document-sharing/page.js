@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-
 import {
   Paper,
   Table,
@@ -19,7 +18,7 @@ import {
 } from "@mui/material";
 
 import CommonDialog from "@/components/CommonDialog/CommonDialog";
-import SearchBar from "@/components/Search/Search"; // ✅ Renamed to avoid identifier conflict
+import SearchBar from "@/components/Search/Search";
 import CreateDocumentSharing from "@/components/Course/DocumentSharing/Create/Create";
 import ViewDocumentSharing from "@/components/Course/DocumentSharing/View/View";
 import EditDocumentSharing from "@/components/Course/DocumentSharing/Edit/Edit";
@@ -43,7 +42,6 @@ const DocumentSharing = () => {
   const [rows, setRows] = useState([]);
   const [filteredRows, setFilteredRows] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [searchTerm, setSearchTerm] = useState("");
 
   const token = Cookies.get("token");
@@ -64,9 +62,7 @@ const DocumentSharing = () => {
       try {
         const response = await fetch(`${Base_url}/documentsharing`, {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         const result = await response.text();
@@ -101,7 +97,9 @@ const DocumentSharing = () => {
     row,
     topic,
     topicDescription:
-      topicDescription.length > 50 ? `${topicDescription.slice(0, 50)}...` : topicDescription,
+      topicDescription.length > 50
+        ? `${topicDescription.slice(0, 50)}...`
+        : topicDescription,
     course,
     teacher,
     document,
@@ -154,30 +152,29 @@ const DocumentSharing = () => {
     setDeleteShow(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     setIsDeleting(true);
-    fetch(`${Base_url}/documentsharing/${deleteId}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((response) => response.text())
-      .then((result) => {
-        const res = JSON.parse(result);
-        if (res.status === "success") {
-          toast.success("Document deleted successfully!");
-          setLoading(true);
-        } else {
-          toast.error(res.message);
-        }
-        setIsDeleting(false);
-        handleClose();
-      })
-      .catch((error) => {
-        console.error("Delete error:", error);
-        setIsDeleting(false);
+    try {
+      const response = await fetch(`${Base_url}/documentsharing/${deleteId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
+
+      const result = await response.text();
+      const res = JSON.parse(result);
+
+      if (res.status === "success") {
+        toast.success("Document deleted successfully!");
+        setLoading(true);
+      } else {
+        toast.error(res.message);
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error("Failed to delete document.");
+    }
+    setIsDeleting(false);
+    handleClose();
   };
 
   const handleClose = () => {
@@ -291,6 +288,7 @@ const DocumentSharing = () => {
           />
         </Paper>
 
+        {/* ✅ All dialogs handled here */}
         <CommonDialog
           open={openData || viewShow || editShow || deleteShow}
           onClose={handleClose}
