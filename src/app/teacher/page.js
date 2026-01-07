@@ -46,6 +46,7 @@ export default function TeacherPage() {
       mobileNo, 
       emailId, 
       experience, 
+      gender,
       qualification,
       
       action: (
@@ -131,7 +132,7 @@ export default function TeacherPage() {
           <Search 
             onSearch={handleSearch} 
             buttonText="Add Teacher"
-            onAddClick={() => router.push('/createfaculty')}
+            onAddClick={() => router.push('/teacher')}
           />
         </Box>
 
