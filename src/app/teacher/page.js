@@ -17,13 +17,19 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Layout from "@/components/Layout";
 
+// 1. Import your CreateTeacher Dialog component
+import CreateTeacher from "@/components/Teacher/Create/Create"; 
+
 export default function TeacherPage() {
   const [rows, setRows] = useState([]);
   const [filteredRows, setFilteredRows] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  
+  // 2. Add state to control the dialog visibility
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const token = Cookies.get("token");
+  const token =("token");
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
   const router = useRouter();
 
@@ -38,6 +44,28 @@ export default function TeacherPage() {
     { id: 'action', label: 'Action', align: 'center' },
   ];
 
+  // 3. Logic to handle API call passed to the dialog
+  const handleCreateTeacher = async (formData) => {
+    try {
+      const response = await fetch(`${Base_url}/teacher`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData, 
+      });
+
+      const res = await response.json();
+      if (res.status === "success") {
+        setLoading(true); // Trigger re-fetch of table data
+        setIsDialogOpen(false); // Close dialog on success
+      } else {
+        throw new Error(res.message || "Failed to create");
+      }
+    } catch (error) {
+      console.error("Creation error:", error);
+      throw error; // Re-throw to be caught by the Dialog's toast
+    }
+  };
+
   const createData = (si, item, teacherName, courseName, gender, mobileNo, emailId, experience, qualification) => {
     return { 
       si, 
@@ -48,7 +76,6 @@ export default function TeacherPage() {
       experience, 
       gender,
       qualification,
-      
       action: (
         <Box sx={{ display: 'flex', justifyContent: 'center' }}>
           <Tooltip title="View">
@@ -132,7 +159,8 @@ export default function TeacherPage() {
           <Search 
             onSearch={handleSearch} 
             buttonText="Add Teacher"
-            onAddClick={() => router.push('/teacher')}
+            // 4. Update onAddClick to open the dialog instead of routing
+            onAddClick={() => setIsDialogOpen(true)}
           />
         </Box>
 
@@ -176,6 +204,14 @@ export default function TeacherPage() {
             onRowsPerPageChange={(e) => { setRowsPerPage(+e.target.value); setPage(0); }}
           />
         </Paper>
+
+        {/* 5. Render Dialog Component conditionally */}
+        {isDialogOpen && (
+          <CreateTeacher 
+            handleClose={() => setIsDialogOpen(false)} 
+            handleCreate={handleCreateTeacher} 
+          />
+        )}
       </Box>
     </Layout>
   );

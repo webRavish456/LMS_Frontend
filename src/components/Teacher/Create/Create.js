@@ -36,7 +36,7 @@ const CreateTeacher = ({ handleClose, handleCreate }) => {
     }
 
     try {
-      // Try sending as FormData (some backends expect multipart/form-data)
+      
       const fd = new FormData();
       Object.keys(formData).forEach((k) => {
         if (formData[k] !== undefined && formData[k] !== null) fd.append(k, formData[k]);

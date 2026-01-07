@@ -37,7 +37,7 @@ const schema = yup.object({
 const CreateStaff = ({ onSuccess, handleClose }) => {
   const [loading, setLoading] = useState(false);
 
-  const token = Cookies.get("token");
+  const token = localStorage.getItem('token')
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
   const {
@@ -64,43 +64,26 @@ const CreateStaff = ({ onSuccess, handleClose }) => {
   const onSubmit = async (data) => {
     setLoading(true);
 
-    // ✅ Send as FormData (like Teacher component does)
-    const fd = new FormData();
-    
+    // ✅ clean payload (remove empty optional fields)
     const payload = {
       staffName: data.staffName,
       designation: data.designation,
-      mobile: data.mobile || data.mobileNO,
-      mobileNo: data.mobile || data.mobileNO,
+      mobileNO: data.mobileNO,
       email: data.email,
       status: data.status,
-      address: data.address || "",
-      salary: data.salary || "",
-      joiningDate: data.joiningDate || "",
-      password: "Temp@1234",
-      role: "staff",
-      department: data.department || "",
-      branch: data.branch || "",
-      gender: data.gender || "",
-      qualification: data.qualification || "",
-      experience: data.experience || "0",
+      ...(data.address && { address: data.address }),
+      ...(data.salary && { salary: data.salary }),
+      ...(data.joiningDate && { joiningDate: data.joiningDate }),
     };
-    
-    // Append all fields to FormData
-    Object.keys(payload).forEach((k) => {
-      if (payload[k] !== undefined && payload[k] !== null) {
-        fd.append(k, payload[k]);
-      }
-    });
 
     try {
-      const endpoint = `${Base_url}/staff`;
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${Base_url}/staff`, {
         method: "POST",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: fd,
+        body: JSON.stringify(payload),
       });
 
       const res = await response.json();
