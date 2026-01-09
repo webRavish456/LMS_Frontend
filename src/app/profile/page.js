@@ -1,8 +1,6 @@
 'use client'
 
-import  { useEffect, useState } from "react";
-
-
+import { useEffect, useState, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -16,13 +14,12 @@ import {
   Grid,
   Avatar,
   FormControl,
-  FormLabel
-  
+  FormLabel,
+  CircularProgress
 } from "@mui/material";
 import Cookies from "js-cookie";
-
 import CommonDialog from "@/components/CommonDialog/CommonDialog";
-import {ToastContainer } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -31,387 +28,208 @@ import Layout from "@/components/Layout";
 import CreateProfile from "@/components/Profile/Create/Create";
 import EditProfile from "@/components/Profile/Edit/Edit";
 
-
-
 const schema = yup.object().shape({
-
   profilePhoto: yup.mixed(),
   mobileNo: yup.string(),
-  email: yup.string(),
+  email: yup.string().email("Invalid email"),
   address: yup.string(),
   dob: yup.string(),
   name: yup.string(),
   gender: yup.string(),
 });
 
-
 const Profile = () => {
-
-  const {
-    register,
-    reset,
-  } = useForm({ 
+  const { register, reset } = useForm({
     resolver: yupResolver(schema),
- 
-});
+  });
 
   const [profileId, setProfileId] = useState(null);
   const [editMode, setEditMode] = useState(false);
-
-  const [gender, setGender]=useState([])
-
-  const [openData, setOpenData] =useState(false)
-
-  const [editShow, setEditShow] =useState(false)
-
+  const [gender, setGender] = useState("");
+  const [openData, setOpenData] = useState(false);
+  const [editShow, setEditShow] = useState(false);
   const [editData, setEditData] = useState(null);
-
-  const [loading, setLoading] = useState(true)
-
-  const [formData, setformData] =useState([])
-
-  // Safely access localStorage on client side
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const profile = localStorage.getItem("profileId");
-        if (profile) {
-          const parsedProfile = JSON.parse(profile);
-          setProfileId(parsedProfile);
-          setEditMode(true);
-        }
-      } catch (error) {
-        console.error('Error reading profileId from localStorage:', error);
-      }
-    }
-  }, []);
-
-  const handleClose=()=>
-  {
-     setOpenData(false);
-     setEditShow(false);
-  }
+  const [loading, setLoading] = useState(true);
+  const [formData, setformData] = useState({});
 
   const token = Cookies.get("token");
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
-
   const options = {
-    timeZone: 'Asia/Kolkata',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
   };
 
-  useEffect(() => {
+  const fetchProfileData = useCallback(async (id) => {
+    try {
+      const response = await fetch(`${Base_url}/profile/${id}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    const fetchProfileData = async () => {
-      try {
-        const response = await fetch(`${Base_url}/profile/${profileId}`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-  
-        const result = await response.text();
-        const res = JSON.parse(result);
-  
-        if (res.status === "success") {
+      const res = await response.json();
 
-          setformData(res.data)
-          setGender(res.data.gender)
-          setEditData(res.data)
-          setEditMode(true)
+      if (res.status === "success") {
+        setformData(res.data);
+        setGender(res.data.gender);
+        setEditData(res.data);
+        setEditMode(true);
 
-          // Safely set localStorage only on client side
-          if (typeof window !== 'undefined') {
-            localStorage.setItem("profilePhoto", JSON.stringify(res.data.profilePhoto))
-          }
-
-          reset({
-            name: res.data.name,
-            gender: res.data.gender,
-            dob: res.data.dob ? new Date(res.data.dob).toISOString().split("T")[0] : "",
-            mobileNo: res.data.mobileNo,
-            email: res.data.email,
-            address: res.data.address,
-            });        
+        if (typeof window !== 'undefined') {
+          localStorage.setItem("profilePhoto", JSON.stringify(res.data.profilePhoto));
         }
 
-         res.status==="error" && typeof window !== 'undefined' && localStorage.clear()
-
-        setLoading(false);
-
-      } catch (error) {
-        console.error("Error fetching staff data:", error);
+        reset({
+          name: res.data.name,
+          gender: res.data.gender,
+          dob: res.data.dob ? new Date(res.data.dob).toISOString().split("T")[0] : "",
+          mobileNo: res.data.mobileNo,
+          email: res.data.email,
+          address: res.data.address,
+        });
+      } else {
+        setEditMode(false);
       }
-    };
-  
-    if (loading && profileId) {
-      fetchProfileData();
+    } catch (error) {
+      console.error("Error fetching profile data:", error);
+    } finally {
+      setLoading(false);
     }
-  }, [loading, profileId]);
+  }, [Base_url, token, reset]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedId = localStorage.getItem("profileId");
+      if (storedId) {
+        const parsedId = JSON.parse(storedId);
+        setProfileId(parsedId);
+        fetchProfileData(parsedId);
+      } else {
+        setLoading(false);
+      }
+    }
+  }, [fetchProfileData]);
 
-  const handleCreateProfile = (e) => {
-
-    setOpenData(true);
-  }
-
-  const handleUpdate = (data) => {
-    setLoading(data)
+  const handleClose = () => {
+    setOpenData(false);
+    setEditShow(false);
   };
 
-  const handleCreate =  (data) => {
-     setLoading(data)
-  };
-
-
-const handleEditProfile = ()=>
-{
-    setEditShow(true)
-}
+  const handleCreateProfile = () => setOpenData(true);
+  const handleEditProfile = () => setEditShow(true);
+  const handleUpdate = (status) => setLoading(status);
+  const handleCreate = (status) => setLoading(status);
 
   return (
-     
-    <>
-    {!loading && <>
     <Layout>
-    <ToastContainer/>
-    <Box className="container overflow">
-
-      <Card sx={{ mb: 4}}>
-        <CardContent>
-      <Grid container spacing={2} alignItems="center">
-      
-        <Grid size={{xs:12, md:4}}>   
-          <Box display="flex" alignItems="center">
-           <Avatar sx={{ width: 80, height: 80, mr: 2, background:"#d2d2d2", p:"4px" }} src={formData.profilePhoto || ''}/>
-            <Box className="profile_active">
-              <Typography fontWeight="bold">Super Admin</Typography>
-              <Button
-              variant="contained"
-              size="small"
-              sx={{
-              borderRadius: '20px',         
-              textTransform: 'none',        
-              fontSize: '12px',
-              padding: '4px 12px',
-              minWidth: 'auto',             
-              boxShadow: 'none',            
-        }}
-        color="primary"
-      >
-        Active
-      </Button>
-
-            </Box>
+      <ToastContainer />
+      <Box sx={{ p: 3 }}>
+        {loading ? (
+          <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+            <CircularProgress />
           </Box>
-        </Grid>
+        ) : (
+          <Box className="container overflow">
+            {/* Top Card: Summary */}
+            <Card sx={{ mb: 4, borderRadius: '12px' }}>
+              <CardContent>
+                <Grid container spacing={2} alignItems="center">
+                  <Grid item xs={12} md={4}>
+                    <Box display="flex" alignItems="center">
+                      <Avatar sx={{ width: 80, height: 80, mr: 2, bgcolor: "#d2d2d2" }} src={formData.profilePhoto || ''} />
+                      <Box>
+                        <Typography variant="h6" fontWeight="bold">{formData.name || "User"}</Typography>
+                        <Button variant="contained" color="success" size="small" sx={{ borderRadius: '20px', textTransform: 'none' }}>
+                          Active
+                        </Button>
+                      </Box>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={8}>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="body2" color="textSecondary">☎ <b>Mobile:</b> {formData.mobileNo}</Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="body2" color="textSecondary">📧 <b>Email:</b> {formData.email}</Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="body2" color="textSecondary">📍 <b>Address:</b> {formData.address}</Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="body2" color="textSecondary">🎂 <b>DOB:</b> {formData.dob ? new Date(formData.dob).toLocaleDateString('en-IN', options) : 'N/A'}</Typography>
+                      </Grid>
+                    </Grid>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
 
-        <Grid size={{xs:12, md:8}}>
-          <Grid container spacing={2}>
-            <Grid size={{xs:12, sm:6}}>
-              <Typography color="textSecondary" fontWeight="bold">
-              ☎ Mobile No.: <span style={{fontSize:"14px", color:"#000"}}>{formData.mobileNo}</span>
-              </Typography>
-            </Grid>
+            {/* Bottom Card: Form Details */}
+            <Card sx={{ borderRadius: '12px' }}>
+              <CardContent>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Typography variant="h6" fontWeight="bold">Personal Details</Typography>
+                  <Button 
+                    variant="contained" 
+                    size="small" 
+                    onClick={editMode ? handleEditProfile : handleCreateProfile}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    {editMode ? "Edit Profile" : "Create Profile"}
+                  </Button>
+                </Box>
 
-            <Grid size={{xs:12, sm:6}}>
-              <Typography color="textSecondary" fontWeight="bold">
-                📅 Email Id: <span style={{fontSize:"14px", color:"#000"}}>{formData.email}</span>
-              </Typography>
-            </Grid>
-
-            <Grid size={{xs:12, sm:6}}>
-              <Typography color="textSecondary" fontWeight="bold">
-              📍Address: <span style={{fontSize:"14px", color:"#000"}}>{formData.address}</span>
-              </Typography>
-            </Grid> 
-
-            <Grid size={{xs:12, sm:6}}>
-              <Typography color="textSecondary" fontWeight="bold">
-              📠 Date of Birth: <span style={{fontSize:"14px", color:"#000"}}>{ formData.dob ? new Date(formData.dob).toLocaleDateString('en-IN', options):null}</span>
-              </Typography>
-            </Grid>
-          </Grid>
-        </Grid>
-      </Grid>
-
-
-        </CardContent>
-      </Card>
-
-
-        <Card>
-          <CardContent>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Box>
-            <Typography variant="h6">Personal Details:</Typography>
-          </Box>
-            <Box display="flex" gap={2}>
-            {editMode ? 
-            <Button variant="contained" 
-              className="primary_button" 
-              size="small" 
-              sx={{
-                       
-                textTransform: 'none',        
-                fontSize: '12px',
-                padding: '4px 12px',
-               }}
-              onClick={handleEditProfile}>
-               Edit
-              </Button>
-              : <Button variant="contained" 
-              className="primary_button" 
-              size="small" 
-              sx={{
-                       
-                textTransform: 'none',        
-                fontSize: '12px',
-                padding: '4px 12px',
-               }}
-              onClick={handleCreateProfile}>
-              Create
-              </Button>}
-             
-
-            </Box>
-          </Box>
-          <TextField
-          InputLabelProps={{ shrink:true}}
-          type="text"
-          label={
-            <>
-              Full name <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-            </>
-          }
-          variant="outlined"
-          {...register("name")}
-      
-          fullWidth
-          margin="normal"
-        />
-
-           <FormControl component="fieldset" fullWidth margin="normal">
-            <FormLabel component="legend" sx={{ marginLeft: 2 }}>Gender</FormLabel>
-            <RadioGroup row defaultValue={gender}>
-               
-                <FormControlLabel
-                    value="male"
-                    control={<Radio sx={{ marginLeft: 2 }} {...register("gender")} />}
-                    label="Male"
-               />
-
-                <FormControlLabel
-                    value="female"
-                    control={<Radio sx={{ marginLeft: 2 }} {...register("gender")} />}
-                    label="Female"
-                  />
-
-                <FormControlLabel
-                    value="others"
-                    control={<Radio sx={{ marginLeft: 2 }} {...register("gender")} />}
-                    label="Others"
-                  />
-
-            </RadioGroup>
-           
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <TextField label="Full Name" fullWidth variant="outlined" InputLabelProps={{ shrink: true }} {...register("name")} inputProps={{ readOnly: true }} />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <FormControl component="fieldset">
+                      <FormLabel component="legend">Gender</FormLabel>
+                      <RadioGroup row value={gender || ""}>
+                        <FormControlLabel value="male" control={<Radio {...register("gender")} />} label="Male" />
+                        <FormControlLabel value="female" control={<Radio {...register("gender")} />} label="Female" />
+                        <FormControlLabel value="others" control={<Radio {...register("gender")} />} label="Others" />
+                      </RadioGroup>
                     </FormControl>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField label="Date of Birth" type="date" fullWidth InputLabelProps={{ shrink: true }} {...register("dob")} inputProps={{ readOnly: true }} />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField label="Mobile No" fullWidth InputLabelProps={{ shrink: true }} {...register("mobileNo")} inputProps={{ readOnly: true }} />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField label="Email" fullWidth InputLabelProps={{ shrink: true }} {...register("email")} inputProps={{ readOnly: true }} />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField label="Address" fullWidth multiline rows={2} InputLabelProps={{ shrink: true }} {...register("address")} inputProps={{ readOnly: true }} />
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
 
-       <TextField InputLabelProps={{shrink:true}}
-                type="date"
-                label={
-                    <>
-                    Date of Birth 
-                    </>
-                }
-                variant="outlined"
-                {...register("dob")}
-             
-                fullWidth
-                margin="normal"
-            />
-
-           <TextField
-                  type="text"
-                  InputLabelProps={{ shrink:true}}
-                  label={
-                    <>
-                      Mobile No <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-                    </>
-                  }
-                  variant="outlined"
-                  {...register("mobileNo")}
-                 
-                  fullWidth
-                  margin="normal"
-                />
-
-         <TextField
-              type="text"
-              InputLabelProps={{ shrink:true}}
-              label={
-                <>
-                  Email Id <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-                </>
+            <CommonDialog
+              open={openData || editShow}
+              onClose={handleClose}
+              dialogTitle={openData ? "Create Profile" : "Edit Profile"}
+              dialogContent={
+                openData ? (
+                  <CreateProfile handleCreate={handleCreate} handleClose={handleClose} />
+                ) : (
+                  <EditProfile editData={editData} handleUpdate={handleUpdate} handleClose={handleClose} />
+                )
               }
-              variant="outlined"
-              {...register("email")}
-              fullWidth
-              margin="normal"
             />
-
-
-     <TextField
-           type="text"
-            InputLabelProps={{ shrink:true}}
-          label={
-            <>
-               Address <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-            </>
-          }
-          variant="outlined"
-          {...register("address")}
-          fullWidth
-          margin="normal"
-        />
-           
-          </CardContent>
-        </Card>
-     
-
-        <CommonDialog
-          open={openData ||  editShow }
-          onClose={handleClose}
-          dialogTitle={
-            openData
-              ? "Create Profile"
-              : editShow
-              ? "Edit Profile"
-              : ""
-          }
-          dialogContent={
-            openData ? (
-              <CreateProfile handleCreate={handleCreate}  handleClose={handleClose} />
-            ) : editShow ? (
-              <EditProfile
-                editData={editData}
-                handleUpdate={handleUpdate}
-                handleClose={handleClose}
-              />
-            ) : null
-          }
-        />
-    </Box>
+          </Box>
+        )}
+      </Box>
     </Layout>
-    </>
-}
-    </>
   );
 };
-
 
 export default Profile;
