@@ -1,16 +1,8 @@
 "use client";
-
 import React, { useState } from "react";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Button,
-  MenuItem,
-} from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, MenuItem, Box } from "@mui/material";
 import { toast } from "react-toastify";
+import TextFeild from "@mui/material/TextField";
 
 const CreateTeacher = ({ handleClose, handleCreate }) => {
   const [formData, setFormData] = useState({
@@ -18,7 +10,8 @@ const CreateTeacher = ({ handleClose, handleCreate }) => {
     emailId: "",
     mobileNo: "",
     courseName: "",
-    gender: "",
+    Dob:"",
+    gender: "Male",
     qualification: "",
     experience: "",
     status: "Active",
@@ -29,114 +22,35 @@ const CreateTeacher = ({ handleClose, handleCreate }) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async () => {
+  const onSubmit = async () => {
     if (!formData.teacherName || !formData.emailId || !formData.mobileNo) {
-      toast.error("Teacher Name, Email and Mobile are required!");
+      toast.error("Please fill Name, Email, and Mobile!");
       return;
     }
-
-    try {
-      
-      const fd = new FormData();
-      Object.keys(formData).forEach((k) => {
-        if (formData[k] !== undefined && formData[k] !== null) fd.append(k, formData[k]);
-      });
-
-      await handleCreate(fd);
-
-      toast.success("Teacher created successfully!");
-      handleClose();
-    } catch (error) {
-      console.error("Error creating teacher:", error);
-      toast.error(error.message || "Failed to create teacher. Please try again.");
-    }
+    
+    await handleCreate(formData); 
   };
 
   return (
     <Dialog open onClose={handleClose} fullWidth maxWidth="sm">
-      <DialogTitle>Create New Teacher</DialogTitle>
-      <DialogContent>
-        <TextField
-          fullWidth
-          margin="dense"
-          label="Teacher Name"
-          name="teacherName"
-          value={formData.teacherName}
-          onChange={handleChange}
-        />
-        <TextField
-          fullWidth
-          margin="dense"
-          label="Email ID"
-          name="emailId"
-          type="email"
-          value={formData.emailId}
-          onChange={handleChange}
-        />
-        <TextField
-          fullWidth
-          margin="dense"
-          label="Mobile Number"
-          name="mobileNo"
-          value={formData.mobileNo}
-          onChange={handleChange}
-        />
-        <TextField
-          fullWidth
-          margin="dense"
-          label="Course Name"
-          name="courseName"
-          value={formData.courseName}
-          onChange={handleChange}
-        />
-        <TextField
-          select
-          fullWidth
-          margin="dense"
-          label="Gender"
-          name="gender"
-          value={formData.gender}
-          onChange={handleChange}
-        >
-          <MenuItem value="Male">Male</MenuItem>
-          <MenuItem value="Female">Female</MenuItem>
-          <MenuItem value="Other">Other</MenuItem>
-        </TextField>
-        <TextField
-          fullWidth
-          margin="dense"
-          label="Qualification"
-          name="qualification"
-          value={formData.qualification}
-          onChange={handleChange}
-        />
-        <TextField
-          fullWidth
-          margin="dense"
-          label="Experience (in years)"
-          name="experience"
-          type="number"
-          value={formData.experience}
-          onChange={handleChange}
-        />
-        <TextField
-          select
-          fullWidth
-          margin="dense"
-          label="Status"
-          name="status"
-          value={formData.status}
-          onChange={handleChange}
-        >
-          <MenuItem value="Active">Active</MenuItem>
-          <MenuItem value="Inactive">Inactive</MenuItem>
-        </TextField>
+      <DialogTitle sx={{ fontWeight: 700 }}>Add New Teacher Details</DialogTitle>
+      <DialogContent dividers>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <TextField label="Teacher Name" name="teacherName" fullWidth onChange={handleChange} />
+          <TextField label="Email ID" name="emailId" fullWidth onChange={handleChange} />
+          <TextField label="Mobile Number" name="mobileNo" fullWidth onChange={handleChange} />
+          <TextField label="Department" name="courseName" fullWidth onChange={handleChange} />
+          <TextFeild label="Dob" name="Dob" fullWidth onChange={handleChange}/>
+          <TextField select label="Gender" name="gender" value={formData.gender} fullWidth onChange={handleChange}>
+            <MenuItem value="Male">Male</MenuItem>
+            <MenuItem value="Female">Female</MenuItem>
+          </TextField>
+          <TextField label="Experience" name="experience" type="number" fullWidth onChange={handleChange} />
+        </Box>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose}>Cancel</Button>
-        <Button variant="contained" onClick={handleSubmit}>
-          Add Teacher
-        </Button>
+      <DialogActions sx={{ p: 2 }}>
+        <Button onClick={handleClose} color="inherit">Cancel</Button>
+        <Button variant="contained" onClick={onSubmit} sx={{ backgroundColor: "#072eb0" }}>Save Teacher</Button>
       </DialogActions>
     </Dialog>
   );

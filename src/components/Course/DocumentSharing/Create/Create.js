@@ -62,14 +62,23 @@ const CreateDocumentSharing = ({ handleCreate, handleClose }) => {
                 ]);
                 const [courseRes, teacherRes] = await Promise.all([resCourse.json(), resTeacher.json()]);
 
-                if (courseRes.status === "success") {
+                if (courseRes.status === "success" && courseRes.data) {
                     setCourseName(courseRes.data);
-                    if (courseRes.data && courseRes.data.length > 0) {
+                    // ✅ Automatically select a random Course
+                    if (courseRes.data.length > 0) {
                         const randomCourse = courseRes.data[Math.floor(Math.random() * courseRes.data.length)];
                         setValue("course", randomCourse.courseName);
                     }
                 }
-                if (teacherRes.status === "success") setTeacherName(teacherRes.data);
+
+                if (teacherRes.status === "success" && teacherRes.data) {
+                    setTeacherName(teacherRes.data);
+                    // ✅ Automatically select a random Teacher
+                    if (teacherRes.data.length > 0) {
+                        const randomTeacher = teacherRes.data[Math.floor(Math.random() * teacherRes.data.length)];
+                        setValue("teacher", randomTeacher.teacherName);
+                    }
+                }
                 setLoadingdata(false);
             } catch (error) {
                 console.error("Fetch Error:", error);
@@ -91,9 +100,6 @@ const CreateDocumentSharing = ({ handleCreate, handleClose }) => {
                 formdata.append("document", data.document[0]);
             }
 
-            console.log("📤 Sending to:", `${Base_url}/documentsharing`);
-            console.log("📋 Data:", { topic: data.topic, course: data.course, teacher: data.teacher });
-
             const res = await fetch(`${Base_url}/documentsharing`, {
                 method: "POST",
                 body: formdata,
@@ -101,7 +107,6 @@ const CreateDocumentSharing = ({ handleCreate, handleClose }) => {
             });
 
             const result = await res.json();
-            console.log("✅ Response:", result);
 
             if (result.status === "success") {
                 toast.success("Created Successfully!");
@@ -109,11 +114,9 @@ const CreateDocumentSharing = ({ handleCreate, handleClose }) => {
                 handleClose();
                 reset();
             } else {
-                console.error("❌ Server Error:", result);
                 toast.error(result.message || "Failed to create");
             }
         } catch (error) {
-            console.error("❌ Network Error:", error);
             toast.error("Error creating document: " + error.message);
         } finally {
             setLoading(false);
@@ -123,7 +126,7 @@ const CreateDocumentSharing = ({ handleCreate, handleClose }) => {
     return (
         <form onSubmit={handleSubmit(onSubmit)} style={{ overflow: "hidden" }}>
             <Grid container spacing={2} sx={{ mt: 1 }}>
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid item xs={12} md={6}>
                     <TextField
                         fullWidth
                         label={<>Topic <span style={{ color: "red" }}>*</span></>}
@@ -133,7 +136,7 @@ const CreateDocumentSharing = ({ handleCreate, handleClose }) => {
                     />
                 </Grid>
 
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid item xs={12} md={6}>
                     <TextField
                         fullWidth
                         label={<>Topic Description <span style={{ color: "red" }}>*</span></>}
@@ -143,7 +146,7 @@ const CreateDocumentSharing = ({ handleCreate, handleClose }) => {
                     />
                 </Grid>
 
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid item xs={12} md={6}>
                     <InputLabel sx={{ fontSize: '0.8rem', mb: 0.5 }}>Course Name *</InputLabel>
                     <Controller
                         name="course"
@@ -164,7 +167,7 @@ const CreateDocumentSharing = ({ handleCreate, handleClose }) => {
                     </Box>
                 </Grid>
 
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid item xs={12} md={6}>
                     <InputLabel sx={{ fontSize: '0.8rem', mb: 0.5 }}>Teacher *</InputLabel>
                     <Controller
                         name="teacher"
@@ -185,7 +188,7 @@ const CreateDocumentSharing = ({ handleCreate, handleClose }) => {
                     </Box>
                 </Grid>
 
-                <Grid size={{ xs: 12 }}>
+                <Grid item xs={12}>
                     <TextField
                         type="file"
                         fullWidth
@@ -212,7 +215,7 @@ const CreateDocumentSharing = ({ handleCreate, handleClose }) => {
                     variant="contained" 
                     disabled={loading} 
                     sx={{ bgcolor: '#072eb0' }}
-                    startIcon={loading ? <CircularProgress size={20} /> : null}
+                    startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
                 >
                     {loading ? "Storing..." : "Submit"}
                 </Button>

@@ -7,13 +7,21 @@ export default function Delete({ open, onClose, teacher, onConfirm }) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Confirm Delete</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 700, color: '#e6130b' }}>Confirm Delete</DialogTitle>
       <DialogContent dividers>
-        <Typography>Are you sure you want to delete <strong>{teacher.teacherName}</strong>?</Typography>
+        <Typography>
+          क्या आप वाकई <strong>{teacher.teacherName}</strong> को डिलीट करना चाहते हैं?
+        </Typography>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" color="error" onClick={onConfirm}>Delete</Button>
+        <Button onClick={onClose} color="inherit">Cancel</Button>
+        <Button 
+          variant="contained" 
+          color="error" 
+          onClick={() => onConfirm(teacher._id)} // यहाँ ID पास हो रही है
+        >
+          Yes, Delete
+        </Button>
       </DialogActions>
     </Dialog>
   );
