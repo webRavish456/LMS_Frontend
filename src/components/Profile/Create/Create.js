@@ -1,333 +1,109 @@
-'use client'
-
-import React , { useEffect, useState } from "react";
-import {
-  Card,
-  CardContent,
-  Button,
-  TextField,
-  Radio,
-  RadioGroup,
-  FormControlLabel,
-  Typography,
-  Box,
-  Grid,
-  Avatar,
-  FormControl,
-  FormLabel
+"use client";
+import React, { useState } from "react";
+import { 
+  Dialog, DialogTitle, DialogContent, DialogActions, 
+  TextField, Button, Stack, MenuItem, Box, Avatar, IconButton 
 } from "@mui/material";
-import Cookies from "js-cookie";
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import { toast } from "react-toastify";
 
-import CommonDialog from "@/components/CommonDialog/CommonDialog";
-import {ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
-import Layout from "@/components/Layout";
-import CreateProfile from "@/components/Profile/Create/Create";
-import EditProfile from "@/components/Profile/Edit/Edit";
+const CreateProfile = ({ onClose, onCreate }) => {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    mobileNo: "",
+    address: "",
+    dob: "",
+    gender: "male",
+    password: "", 
+  });
 
-const schema = yup.object().shape({
-  profilePhoto: yup.mixed(),
-  mobileNo: yup.string(),
-  email: yup.string(),
-  address: yup.string(),
-  dob: yup.string(),
-  name: yup.string(),
-  gender: yup.string(),
-});
+  const [loading, setLoading] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
-const Profile = () => {
-  const {
-    register,
-    reset,
-  } = useForm({ 
-    resolver: yupResolver(schema),
-});
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) setPreview(URL.createObjectURL(file));
+  };
 
-  const [profileId, setProfileId] = useState(null);
-  const [editMode, setEditMode] = useState(false);
-  const [gender, setGender]=useState([])
-  const [openData, setOpenData] =useState(false)
-  const [editShow, setEditShow] =useState(false)
-  const [editData, setEditData] = useState(null);
-  const [loading, setLoading] = useState(true)
-  const [formData, setformData] =useState([])
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.email || !formData.mobileNo || !formData.password || !formData.dob || !formData.address) {
+      toast.error("Please fill all fields!");
+      return;
+    }
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const profile = localStorage.getItem("profileId");
-        if (profile) {
-          const parsedProfile = JSON.parse(profile);
-          setProfileId(parsedProfile);
-          setEditMode(true);
-        }
-      } catch (error) {
-        console.error('Error reading profileId from localStorage:', error);
-      }
-    }
-  }, []);
+    const token = localStorage.getItem("token");
+    setLoading(true);
 
-  const handleClose=()=>
-  {
-     setOpenData(false);
-     setEditShow(false);
-  }
+    try {
+      const response = await fetch(`${Base_url}/profile`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`, 
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(formData),
+      });
 
-  const token = Cookies.get("token");
-  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
+      const res = await response.json();
 
-  const options = {
-    timeZone: 'Asia/Kolkata',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  };
+      if (response.ok && res.status === "success") {
+        toast.success("Profile created successfully!");
+        onCreate(); 
+        onClose();  
+      } else {
+        toast.error(res.message || "Failed to create profile");
+      }
+    } catch (error) {
+      toast.error("Network error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  useEffect(() => {
-    const fetchProfileData = async () => {
-      try {
-        const response = await fetch(`${Base_url}/profile/${profileId}`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-  
-        const result = await response.text();
-        const res = JSON.parse(result);
-  
-        if (res.status === "success") {
-          setformData(res.data)
-          setGender(res.data.gender)
-          setEditData(res.data)
-          setEditMode(true)
+  return (
+    <Dialog open onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ fontWeight: 700, color: "#072eb0" }}>Add New Profile</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+            <Box sx={{ position: 'relative' }}>
+              <Avatar src={preview} sx={{ width: 80, height: 80, bgcolor: '#20a4ad' }} />
+              <input accept="image/*" id="profile-img" type="file" style={{ display: 'none' }} onChange={handleImageChange} />
+              <label htmlFor="profile-img">
+                <IconButton component="span" sx={{ position: 'absolute', bottom: 0, right: 0, bgcolor: '#ff9800', color: 'white', width: 28, height: 28 }}>
+                  <PhotoCameraIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </label>
+            </Box>
+          </Box>
 
-          if (typeof window !== 'undefined') {
-            localStorage.setItem("profilePhoto", JSON.stringify(res.data.profilePhoto))
-          }
+          <TextField label="Full Name" fullWidth onChange={(e) => setFormData({...formData, name: e.target.value})} />
+          <TextField label="Email Id" type="email" fullWidth onChange={(e) => setFormData({...formData, email: e.target.value})} />
+          <TextField label="Mobile Number" fullWidth onChange={(e) => setFormData({...formData, mobileNo: e.target.value})} />
+          <TextField label="Password" type="password" fullWidth onChange={(e) => setFormData({...formData, password: e.target.value})} />
 
-          reset({
-            name: res.data.name,
-            gender: res.data.gender,
-            dob: res.data.dob ? new Date(res.data.dob).toISOString().split("T")[0] : "",
-            mobileNo: res.data.mobileNo,
-            email: res.data.email,
-            address: res.data.address,
-            });        
-        }
-        res.status==="error" && typeof window !== 'undefined' && localStorage.clear()
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching staff data:", error);
-      }
-    };
-  
-    if (loading && profileId) {
-      fetchProfileData();
-    }
-  }, [loading, profileId]);
+          <Stack direction="row" spacing={2}>
+            <TextField select label="Gender" value={formData.gender} fullWidth onChange={(e) => setFormData({...formData, gender: e.target.value})}>
+              <MenuItem value="male">Male</MenuItem>
+              <MenuItem value="female">Female</MenuItem>
+            </TextField>
+            <TextField label="Date of Birth" type="date" fullWidth InputLabelProps={{ shrink: true }} onChange={(e) => setFormData({...formData, dob: e.target.value})} />
+          </Stack>
 
-  const handleCreateProfile = (e) => {
-    setOpenData(true);
-  }
-
-  const handleUpdate = (data) => {
-    setLoading(data)
-  };
-
-  const handleCreate =  (data) => {
-     setLoading(data)
-  };
-
-  const handleEditProfile = ()=> {
-    setEditShow(true)
-  }
-
-  return (
-     <>
-     {!loading && <>
-      <Layout>
-      <ToastContainer/>
-      <Box className="container overflow">
-        <Card sx={{ mb: 4}}>
-          <CardContent>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={4}>   
-              <Box display="flex" alignItems="center">
-                <Avatar sx={{ width: 80, height: 80, mr: 2, background:"#d2d2d2", p:"4px" }} src={formData.profilePhoto || ''}/>
-                <Box className="profile_active">
-                  <Typography fontWeight="bold">Super Admin</Typography>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    sx={{
-                      borderRadius: '20px', 
-                      textTransform: 'none',        
-                      fontSize: '12px',
-                      padding: '4px 12px',
-                      minWidth: 'auto',             
-                      boxShadow: 'none',            
-                    }}
-                    color="primary"
-                  >
-                    Active
-                  </Button>
-                </Box>
-              </Box>
-            </Grid>
-
-            <Grid item xs={12} md={8}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <Typography color="textSecondary" fontWeight="bold">
-                  ☎ Mobile No.: <span style={{fontSize:"14px", color:"#000"}}>{formData.mobileNo}</span>
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography color="textSecondary" fontWeight="bold">
-                    📅 Email Id: <span style={{fontSize:"14px", color:"#000"}}>{formData.email}</span>
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography color="textSecondary" fontWeight="bold">
-                  📍Address: <span style={{fontSize:"14px", color:"#000"}}>{formData.address}</span>
-                  </Typography>
-                </Grid> 
-                <Grid item xs={12} sm={6}>
-                  <Typography color="textSecondary" fontWeight="bold">
-                  📠 Date of Birth: <span style={{fontSize:"14px", color:"#000"}}>{ formData.dob ? new Date(formData.dob).toLocaleDateString('en-IN', options):null}</span>
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Grid>
-          </Grid>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Box>
-              <Typography variant="h6">Personal Details:</Typography>
-            </Box>
-            <Box display="flex" gap={2}>
-              {editMode ? 
-              <Button variant="contained" 
-                className="primary_button" 
-                size="small" 
-                sx={{ textTransform: 'none', fontSize: '12px', padding: '4px 12px'}}
-                onClick={handleEditProfile}>
-                  Edit
-                </Button>
-                : <Button variant="contained" 
-                className="primary_button" 
-                size="small" 
-                sx={{ textTransform: 'none', fontSize: '12px', padding: '4px 12px'}}
-                onClick={handleCreateProfile}>
-                Create
-                </Button>}
-            </Box>
-          </Box>
-          <TextField
-            InputLabelProps={{ shrink:true}}
-            type="text"
-            label={
-              <> Full name <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span> </>
-            }
-            variant="outlined"
-            {...register("name")}
-            fullWidth
-            margin="normal"
-          />
-          <FormControl component="fieldset" fullWidth margin="normal">
-            <FormLabel component="legend" sx={{ marginLeft: 2 }}>Gender</FormLabel>
-            <RadioGroup row defaultValue={gender}>
-              <FormControlLabel
-                  value="male"
-                  control={<Radio sx={{ marginLeft: 2 }} {...register("gender")} />}
-                  label="Male"
-              />
-              <FormControlLabel
-                  value="female"
-                  control={<Radio sx={{ marginLeft: 2 }} {...register("gender")} />}
-                  label="Female"
-              />
-              <FormControlLabel
-                  value="others"
-                  control={<Radio sx={{ marginLeft: 2 }} {...register("gender")} />}
-                  label="Others"
-              />
-            </RadioGroup>
-          </FormControl>
-          <TextField 
-            InputLabelProps={{shrink:true}}
-            type="date"
-            label={ <> Date of Birth </> }
-            variant="outlined"
-            {...register("dob")}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            type="text"
-            InputLabelProps={{ shrink:true}}
-            label={ <> Mobile No <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span> </> }
-            variant="outlined"
-            {...register("mobileNo")}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            type="text"
-            InputLabelProps={{ shrink:true}}
-            label={ <> Email Id <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span> </> }
-            variant="outlined"
-            {...register("email")}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            type="text"
-            InputLabelProps={{ shrink:true}}
-            label={ <> Address <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span> </> }
-            variant="outlined"
-            {...register("address")}
-            fullWidth
-            margin="normal"
-          />
-          </CardContent>
-        </Card>
-
-        <CommonDialog
-          open={openData ||  editShow }
-          onClose={handleClose}
-          dialogTitle={
-            openData
-              ? "Create Profile"
-              : editShow
-              ? "Edit Profile"
-              : ""
-          }
-          dialogContent={
-            openData ? (
-              <CreateProfile handleCreate={handleCreate}  handleClose={handleClose} />
-            ) : editShow ? (
-              <EditProfile
-                editData={editData}
-                handleUpdate={handleUpdate}
-                handleClose={handleClose}
-              />
-            ) : null
-          }
-        />
-      </Box>
-      </Layout>
-     </>}
-    </>
-  );
+          <TextField label="Address" multiline rows={2} fullWidth onChange={(e) => setFormData({...formData, address: e.target.value})} />
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ p: 2 }}>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={handleSubmit} disabled={loading} sx={{ bgcolor: "#072eb0" }}>
+          {loading ? "Creating..." : "Create Profile"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 };
 
-export default Profile;
+export default CreateProfile;

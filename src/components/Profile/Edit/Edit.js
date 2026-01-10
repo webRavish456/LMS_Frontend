@@ -1,382 +1,152 @@
 'use client'
 
 import React, { useEffect, useState } from "react";
-import {
-  Card,
-  CardContent,
-  TextField,
-  Radio,
-  RadioGroup,
-  FormControlLabel,
-  Typography,
-  Button,
-  Box,
-  Grid,
-  useMediaQuery,
-  FormControl,
-  FormLabel,
-  CircularProgress,
+import { 
+  Box, TextField, Button, Typography, Grid, 
+  Avatar, IconButton, CircularProgress 
 } from "@mui/material";
-
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
-import {  toast } from "react-toastify";
-import 'react-toastify/dist/ReactToastify.css';
-import Cookies from 'js-cookie';
-import Link from "next/link";
+import { toast } from "react-toastify";
 
-
-const schema = yup.object().shape({
-
-
-  mobileNo: yup
-  .string()
-  .required("Mobile number is required")
-  .matches(/^[0-9]{10}$/, "Mobile number must be exactly 10 digits"),
-  email: yup
-  .string()
-  .required("Email ID is required")
-  .email("Invalid email format"),
-  address: yup.string().required("Address is required"),
-  dob: yup.string().required("Date of Birth is required"),
-  name: yup.string().required("Name is required"),
-  gender: yup.string().required("Gender is required"),
-  password: yup.string().required("Password is required"),
-  confirmpassword: yup.string()
-    .oneOf([yup.ref("password")], "Passwords must match")
-    .required("Confirm password is required")
-
-});
-
-
-
-const EditProfile = ({editData, handleUpdate, handleClose}) => {
-
-
-  const isSmScreen = useMediaQuery("(max-width:768px)");
-
-  const token = Cookies.get('token');
+const EditProfile = ({ data, handleClose }) => {
+  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  const [loading, setLoading] = useState(false);
+  const [preview, setPreview] = useState(data?.profilePhoto || null);
+  
+  // 1. TOKEN STATE ADD KI HAI (Aapke code mein ye missing tha)
+  const [token, setToken] = useState(null);
 
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
-  const [loading, setLoading] = useState(false)
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm({ resolver: yupResolver(schema),
-  });
-
+  // 2. TOKEN LOAD KARNA
   useEffect(() => {
-    if (editData) {
-      reset({
-  
-        mobileNo: editData.mobileNo|| "",
-        address: editData.address || "",
-        dob: editData.dob ? new Date(editData.dob).toISOString().split("T")[0] : "",
-        name: editData.name || "",
-        email: editData.email || "",
-        gender: editData.gender || "",
-        password:editData.password || "",
-        confirmpassword:editData.password || ""
-      });
+    const savedToken = localStorage.getItem("token");
+    if (savedToken) {
+      setToken(savedToken);
     }
-  }, [editData]);
+  }, []);
 
+  // 3. FORM RESET & DATA FILL
+  useEffect(() => {
+    if (data) {
+      reset({
+        name: data.name,
+        email: data.email,
+        mobileNo: data.mobileNo,
+        address: data.address,
+        dob: data.dob ? new Date(data.dob).toISOString().split("T")[0] : "",
+      });
+      setPreview(data.profilePhoto);
+    }
+  }, [data, reset]);
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setPreview(URL.createObjectURL(file));
+    }
+  };
 
-  const onSubmit = (data) => {
-    
-    setLoading(true)
+  const onSubmit = async (formData) => {
+    // Check if token exists
+    const currentToken = token || localStorage.getItem("token");
+    if (!currentToken) {
+      toast.error("Session expired. Please login again.");
+      return;
+    }
 
-   const formdata = new FormData();
+    setLoading(true);
+    try {
+      const response = await fetch(`${Base_url}/profile/${data._id}`, {
+        method: "PUT", 
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${currentToken}`, // Fixed: currentToken use kiya
+        },
+        body: JSON.stringify(formData),
+      });
 
-   if(data.profilePhoto)
-   { formdata.append("profilePhoto", data.profilePhoto[0]);}
+      const res = await response.json();
 
-   formdata.append("mobileNo", data.mobileNo);
-   formdata.append("address", data.address);
-   formdata.append("dob", data.dob);
-   formdata.append("name", data.name);
-   formdata.append("email", data.email);
-   formdata.append("gender", data.gender);
-   if(editData.password!==data.password)
-   {
-    formdata.append("password", data.password);
-   }
- 
+      if (response.ok && res.status === "success") {
+        toast.success("Profile updated successfully!");
+        handleClose(); 
+      } else {
+        toast.error(res.message || "Update failed");
+      }
+    } catch (error) {
+      console.error("Update Error:", error);
+      toast.error("Error updating profile");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-   const requestOptions = {
-     method: "PATCH",
-     body: formdata,
-     headers: {
-       Authorization: `Bearer ${token}`, 
-      },
-   };
+  return (
+    <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ p: 2 }}>
+      {/* Avatar Section */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+        <Box sx={{ position: 'relative' }}>
+          <Avatar src={preview} sx={{ width: 100, height: 100, bgcolor: '#20a4ad' }} />
+          <input accept="image/*" id="edit-photo" type="file" style={{ display: 'none' }} onChange={handleImageChange} />
+          <label htmlFor="edit-photo">
+            <IconButton
+              component="span"
+              sx={{
+                position: 'absolute', bottom: 0, right: 0,
+                bgcolor: '#ff9800', color: 'white',
+                '&:hover': { bgcolor: '#e68a00' },
+                width: 32, height: 32, border: '2px solid white'
+              }}
+            >
+              <PhotoCameraIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </label>
+        </Box>
+      </Box>
 
-   fetch(`${Base_url}/profile/${editData._id}`, requestOptions)
-     .then((response) => response.text())
+      {/* Fields */}
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={6}>
+          <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 'bold' }}>Full Name</Typography>
+          <TextField fullWidth size="small" {...register("name", { required: "Name is required" })} error={!!errors.name} helperText={errors.name?.message} />
+        </Grid>
 
-     .then((result) => {
+        <Grid item xs={12} md={6}>
+          <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 'bold' }}>Email Address</Typography>
+          <TextField fullWidth size="small" type="email" {...register("email", { required: "Email is required" })} error={!!errors.email} helperText={errors.email?.message} />
+        </Grid>
 
-       const res = JSON.parse(result)
+        <Grid item xs={12} md={6}>
+          <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 'bold' }}>Phone Number</Typography>
+          <TextField fullWidth size="small" {...register("mobileNo")} />
+        </Grid>
 
-       if(res.status==="success")
-       {
-         setLoading(false)
-        
-         toast.success("Profile Updated Successfully!")
-         handleUpdate(true)
-         handleClose()
-         reset();
-       }
-       else {
+        <Grid item xs={12} md={6}>
+          <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 'bold' }}>Date of Birth</Typography>
+          <TextField fullWidth size="small" type="date" InputLabelProps={{ shrink: true }} {...register("dob")} />
+        </Grid>
 
-         setLoading(false)
-         toast.error(res.message)
-
-       }
-     })
-     .catch((error) => console.error(error));
-};   
-
-  return ( 
-
-
-    <form onSubmit={handleSubmit(onSubmit)}>
-
-    <Grid container columnSpacing={2}>
-
-      <Grid size={{xs:12, sm:isSmScreen?12:6, md:6}}>
-        <TextField
-          type="text"
-          label={
-            <>
-              Full name <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-            </>
-          }
-          variant="outlined"
-          {...register("name")}
-          error={!!errors.name}
-          fullWidth
-          margin="normal"
-        />
-        <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-          {errors.name?.message}
-        </div>
+        <Grid item xs={12}>
+          <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 'bold' }}>Address</Typography>
+          <TextField fullWidth multiline rows={3} {...register("address")} />
+        </Grid>
       </Grid>
-      
-      <Grid size={{xs:12, sm:isSmScreen?12:6, md:6}}>
 
-      <FormControl component="fieldset" fullWidth margin="normal" error={!!errors.gender}>
-            <FormLabel component="legend" sx={{ marginLeft: 2 }}>Gender</FormLabel>
-            <RadioGroup row defaultValue={editData.gender}>
-                <FormControlLabel
-                    value="male"
-                    control={<Radio sx={{ marginLeft: 2 }} {...register("gender")} />}
-                    label="Male"
-                    error={!!errors.gender}
-                />
-                <FormControlLabel
-                    value="female"
-                    control={<Radio sx={{ marginLeft: 2 }} {...register("gender")} />}
-                    label="Female"
-                    error={!!errors.gender}
-                />
-                <FormControlLabel
-                    value="others"
-                    control={<Radio sx={{ marginLeft: 2 }} {...register("gender")} />}
-                    label="Others"
-                    error={!!errors.gender}
-                />
-            </RadioGroup>
-            <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-                {errors.gender?.message}
-            </div>
-                    </FormControl>
-                    </Grid>
-
-              <Grid size={{xs:12, sm:isSmScreen?12:6, md:6}}>
-                <TextField
-                  type="number"
-                  label={
-                    <>
-                      Mobile No <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-                    </>
-                  }
-                  variant="outlined"
-                  {...register("mobileNo")}
-                  error={!!errors.mobileNo}
-                  fullWidth
-                  margin="normal"
-                />
-                <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-                  {errors.mobileNo?.message}
-                </div>
-              </Grid>
-
-          <Grid size={{xs:12, sm:isSmScreen?12:6, md:6}}>
-            <TextField
-              type="text"
-              label={
-                <>
-                  Email Id <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-                </>
-              }
-              variant="outlined"
-              {...register("email")}
-              error={!!errors.email}
-              fullWidth
-              margin="normal"
-            />
-            <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-              {errors.email?.message}
-            </div>
-          </Grid>
-
-          <Grid size={{xs:12, sm:isSmScreen?12:6, md:6}}>
-
-          <TextField InputLabelProps={{shrink:true}}
-                type="date"
-                label={
-                    <>
-                    Date of Birth
-                    </>
-                }
-                variant="outlined"
-                {...register("dob")}
-                error={!!errors.dob}
-                fullWidth
-                margin="normal"
-            />
-                <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-                {errors.dob?.message}
-                </div>
-
-              </Grid> 
-
-
-              <Grid size={{xs:12, sm:isSmScreen?12:6, md:6}}>
-             
-              <TextField InputLabelProps={{shrink:true}}
-                    type="file"
-                    label={
-                        <>
-                        Profile Photo
-                        </>
-                    }
-                    variant="outlined"
-                    {...register("profilePhoto")}
-                    error={!!errors.profilePhoto}
-                    fullWidth
-                    margin="normal"
-                />
-                    <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-                    {errors.profilePhoto?.message}
-                    </div>
-
-                    <Typography variant="body2" sx={{ mt: 0 }}>
-                    View existing Profile:&nbsp;
-                  <Link 
-                    href={editData.profilePhoto} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                  >
-                    Profile Photo
-                  </Link>
-                </Typography>
-              </Grid>
-
-              <Grid size={{xs:12, sm:isSmScreen?12:6, md:6}}>
-                
-                <TextField
-              type="password"
-              InputLabelProps={{ shrink:true}}
-              label={
-                <>
-               Enter New Password
-                </>
-            }
-              variant="outlined"
-              {...register("password")}
-              error={!!errors.password}
-                fullWidth
-                    margin="normal"
-              />
-              <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-                {errors.password?.message}
-              </div>
-
-              </Grid> 
-
-              <Grid size={{xs:12, sm:isSmScreen?12:6, md:6}}>
-
-              <TextField
-              type="password"
-              InputLabelProps={{ shrink:true}}
-              label={
-                <>
-               Confirm New Password
-                </>
-            }
-             
-              variant="outlined"
-              {...register("confirmpassword")}
-              error={!!errors.confirmpassword}
-              fullWidth
-              margin="normal"
-            />
-              <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-                {errors.confirmpassword?.message}
-              </div>
-
-              </Grid> 
-      
-       <Grid size={{xs:12, sm:12, md:12}}>
-        <TextField
-           
-            InputLabelProps={{ shrink:true}}
-          label={
-            <>
-               Address <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-            </>
-          }
-          variant="outlined"
-          {...register("address")}
-          error={!!errors.address}
-          fullWidth
-          margin="normal"
-        />
-        <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-          {errors.address?.message}
-        </div>
-      </Grid>
-     
-    </Grid>
-
-    <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 2 }}>
-      <Button onClick={handleClose} className="secondary_button">
-        Cancel
-      </Button>
-      <Button type="submit" className="primary_button">
-
-      {loading ? (
-   <>
-     <CircularProgress size={18} 
-      style={{ marginRight: 8, color: "#fff" }} />
-            Submitting
-        </>
-        ) : (
-        "Submit"
-        )}
-
-      </Button>
+      {/* Actions */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 2 }}>
+        <Button onClick={handleClose} variant="outlined" color="inherit">Cancel</Button>
+        <Button
+          type="submit"
+          variant="contained"
+          disabled={loading}
+          sx={{ bgcolor: '#20a4ad', '&:hover': { bgcolor: '#1a8a91' } }}
+        >
+          {loading ? <CircularProgress size={24} color="inherit" /> : "Update Changes"}
+        </Button>
+      </Box>
     </Box>
-  </form>
-
   );
 };
 
