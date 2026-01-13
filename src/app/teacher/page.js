@@ -16,7 +16,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Layout from "@/components/Layout";
 
-// मॉडल्स इम्पोर्ट
+
 import CreateTeacher from "@/components/Teacher/Create/Create"; 
 import Edit from "@/components/Teacher/Edit/Edit";
 import View from "@/components/Teacher/View/View";
@@ -29,7 +29,6 @@ export default function TeacherPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  // मॉडल्स कंट्रोल के लिए States
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
@@ -38,7 +37,7 @@ export default function TeacherPage() {
 
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
-  // 1. डेटा फेच फंक्शन
+  
   const fetchFacultyData = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -68,15 +67,15 @@ export default function TeacherPage() {
     fetchFacultyData();
   }, [fetchFacultyData]);
 
-  // 2. ✅ Final Save Teacher Function (Payload Correction के साथ)
+ 
   const handleCreateTeacher = async (formData) => {
     const token = localStorage.getItem("token");
     
-    // बैकएंड की डिमांड के हिसाब से पेलोड तैयार करना
+   
     const payload = {
       ...formData,
-      mobileNumber: formData.mobileNo, // मोबाइल की की (Key) सही की गई
-      dob: formData.dob || "1990-01-01", // डिफ़ॉल्ट DOB अगर फॉर्म में नहीं है
+      mobileNumber: formData.mobileNo, 
+      dob: formData.dob || "1990-01-01", 
       address: formData.address || "Not Provided",
       companyDetails: {
         branchName: "Main",
@@ -117,8 +116,8 @@ export default function TeacherPage() {
     }
   };
 
-  // 3. अपडेट और डिलीट के फंक्शन्स (पहले की तरह)
-  // ...
+  
+  
 
   const handleSearch = (term) => {
     const filtered = rows.filter((row) =>
@@ -170,7 +169,7 @@ export default function TeacherPage() {
 
         {isCreateOpen && <CreateTeacher handleClose={() => setIsCreateOpen(false)} handleCreate={handleCreateTeacher} />}
         {isViewOpen && <View open={isViewOpen} onClose={() => setIsViewOpen(false)} teacher={selectedTeacher} />}
-        {/* ... बाकी मॉडल्स */}
+       
       </Box>
     </Layout>
   );

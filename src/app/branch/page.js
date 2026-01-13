@@ -11,12 +11,12 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Cookies from "js-cookie";
 
-// Icons
+
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-// Modals
+
 import Create from "@/components/Branch/Create/Create";
 import View from "@/components/Branch/View/View";
 import Edit from "@/components/Branch/Edit/Edit"; 
@@ -26,7 +26,7 @@ export default function BranchPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // States for Modals
+  
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -35,7 +35,7 @@ export default function BranchPage() {
 
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
-  // 1. डेटा फेच करें
+  
   const fetchBranchData = useCallback(async () => {
     const token = Cookies.get("token") || localStorage.getItem("token");
     try {
@@ -62,7 +62,7 @@ export default function BranchPage() {
     fetchBranchData();
   }, [fetchBranchData]);
 
-  // 2. अपडेट फंक्शन (अब PUT मेथड के साथ)
+ 
   const handleUpdate = async (formData) => {
     const token = Cookies.get("token") || localStorage.getItem("token");
     const branchId = formData._id || formData.id;
@@ -83,7 +83,7 @@ export default function BranchPage() {
       const url = `${Base_url}/branch/${branchId}`;
       
       const response = await fetch(url, {
-        method: "PUT", // बैकएंड राउट से मैच होना चाहिए
+        method: "PUT", 
         headers: { 
           "Content-Type": "application/json", 
           "Authorization": `Bearer ${token}` 
@@ -106,7 +106,7 @@ export default function BranchPage() {
     }
   };
 
-  // 3. डिलीट फंक्शन
+
   const handleConfirmDelete = async () => {
     const token = Cookies.get("token") || localStorage.getItem("token");
     try {
@@ -185,7 +185,7 @@ export default function BranchPage() {
           </Table>
         </TableContainer>
 
-        {/* मॉडल्स */}
+     
         {isCreateOpen && <Create onClose={() => setIsCreateOpen(false)} onCreate={fetchBranchData} />}
         {isViewOpen && <View data={selectedData} onClose={() => setIsViewOpen(false)} />}
         {isEditOpen && <Edit data={selectedData} onClose={() => setIsEditOpen(false)} onUpdate={handleUpdate} />}

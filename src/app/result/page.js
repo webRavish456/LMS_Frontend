@@ -55,7 +55,7 @@ const ResultPage = () => {
         const formatted = res.data.map((item, i) => ({
           ...item,
           si: i + 1,
-          // ✅ Fix for .join() error
+          
           displayTeachers: Array.isArray(item.teacherName) 
             ? item.teacherName.join(", ") 
             : (item.teacherName || "N/A"),
@@ -66,7 +66,7 @@ const ResultPage = () => {
     } catch (error) {
       console.error("Fetch Error:", error);
     } finally {
-      setLoading(false); // ✅ Fix for stuck blue spinner
+      setLoading(false);
     }
   }, [Base_url, token]);
 

@@ -1,49 +1,43 @@
 'use client';
 
 import React from "react";
-import { TextField, Button, Box } from "@mui/material";
+import { Box, TextField, Button } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
-import { useRouter } from "next/navigation";
 
-const Search = ({ searchTerm, setSearchTerm, onAddClick, buttonText = "Add New " }) => {
-  const router = useRouter();
-  
+
+const Search = ({
+  onSearch,
+  onAddClick,
+  buttonText = "Add",
+}) => {
   return (
     <Box
-      style={{ 
-        display: "flex", 
-        justifyContent: "flex-end", 
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 2,
+        mb: 2,
         width: "100%",
-        alignItems: "center", 
-        gridColumnGap: "20px", 
-        marginBottom: "10px",
-        marginRight: "0px"
       }}
     >
       <TextField
-        variant="outlined"
         size="small"
         placeholder="Search..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
+        onChange={(e) => onSearch?.(e.target.value)}
         InputProps={{
-          endAdornment: <SearchIcon style={{ marginRight: 0 }} />,
+          endAdornment: <SearchIcon />,
         }}
-        className="search"
       />
-      <Box className="buttonContainer">
-        <Button 
-          variant="contained" 
-          color="primary" 
-          className="primary_button" 
-          // marginLeft="0px" 
-          startIcon={<AddIcon />} 
-          onClick={onAddClick}
-        >
-          {buttonText}
-        </Button>
-      </Box>
+
+      <Button
+        variant="contained"
+        startIcon={<AddIcon />}
+        onClick={onAddClick}
+      >
+        {buttonText}
+      </Button>
     </Box>
   );
 };

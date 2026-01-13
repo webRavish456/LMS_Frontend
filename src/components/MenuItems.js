@@ -44,8 +44,8 @@ const Menuitems = [
     href: "/student/all-students",
     items: [   // ✅
       {
-        label: "All Students",
-        href: "/student/all-students",
+        label: "StudentList",
+        href: "/student/studentlist",
       },
       {
         label: "Certificate",

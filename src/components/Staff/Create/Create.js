@@ -59,51 +59,49 @@ const CreateStaff = ({ onSuccess, handleClose }) => {
       status: "Active",
     },
   });
+const onSubmit = async (data) => {
+  setLoading(true);
 
-  /* ================= SUBMIT ================= */
-  const onSubmit = async (data) => {
-    setLoading(true);
-
-    // ✅ clean payload (remove empty optional fields)
-    const payload = {
-      staffName: data.staffName,
-      designation: data.designation,
-      mobileNO: data.mobileNO,
-      email: data.email,
-      status: data.status,
-      ...(data.address && { address: data.address }),
-      ...(data.salary && { salary: data.salary }),
-      ...(data.joiningDate && { joiningDate: data.joiningDate }),
-    };
-
-    try {
-      const response = await fetch(`${Base_url}/staff`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const res = await response.json();
-
-      if (res.status === "success") {
-        toast.success("Staff added successfully!");
-        reset();
-        onSuccess?.();
-        handleClose();
-      } else {
-        toast.error(res.message || "Failed to add staff");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Server error");
-    } finally {
-      setLoading(false);
-    }
+  // ✅ SAHI PAYLOAD: Staff model ke mutabiq
+  const payload = {
+    staffName: data.staffName,
+    designation: data.designation,
+    mobileNO: Number(data.mobileNO), // Backend Number expect kar raha hai
+    email: data.email,
+    address: data.address || "N/A", // Required field ko fallback dein
+    salary: Number(data.salary) || 0, // Required field ko fallback dein
+    joiningDate: data.joiningDate || new Date().toISOString(), // Required field
+    status: data.status || "Active",
   };
 
+  try {
+    const response = await fetch(`${Base_url}/staff`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const res = await response.json();
+
+    if (response.ok) {
+      toast.success("Staff added successfully!");
+      reset();
+      onSuccess?.(); // page.js refresh ke liye
+      handleClose();
+    } else {
+      // Backend error message dikhayega
+      toast.error(res.message || "Failed to add staff");
+    }
+  } catch (error) {
+    toast.error("Server error");
+  } finally {
+    setLoading(false);
+  }
+
+};
   return (
     <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ p: 2 }}>
       <Grid container spacing={2}>

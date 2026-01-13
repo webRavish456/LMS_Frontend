@@ -1,27 +1,17 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-
 import {
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TablePagination,
-  TableRow,
-  Box,
-  IconButton,
-  Chip,
-  Menu,
-  MenuItem,
+  Paper, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, Box, IconButton,
+  Chip, Menu, MenuItem, Typography, Button, Stack
 } from "@mui/material";
 
-import Search from "@/components/Search";
+import Search from "@/components/Search/Search";
 import CommonDialog from "@/components/CommonDialog/CommonDialog";
+import Create from "@/components/Leave/Leave-status/Create/Create"; 
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Layout from "@/components/Layout";
@@ -30,244 +20,184 @@ const LeaveRequest = () => {
   const [rows, setRows] = useState([]);
   const [filteredRows, setFilteredRows] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const [viewShow, setViewShow] = useState(false);
-  const [deleteShow, setDeleteShow] = useState(false);
-  const [viewData, setViewData] = useState(null);
-  const [deleteId, setDeleteId] = useState(null);
-
-  // menu state
+  // Dialog States
+  const [openCreate, setOpenCreate] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
+
+  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
+
+  // --- 1. Fetch Data ---
+  const fetchLeaves = useCallback(async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${Base_url}/leave-status`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const res = await response.json();
+      if (res.success) {
+        setRows(res.data);
+        setFilteredRows(res.data);
+      }
+    } catch (error) {
+      toast.error("Failed to load data from server");
+    } finally {
+      setLoading(false);
+    }
+  }, [Base_url]);
+
+  useEffect(() => {
+    fetchLeaves();
+  }, [fetchLeaves]);
+
+  // --- 2. Search Logic ---
+  useEffect(() => {
+    const filtered = rows.filter((row) =>
+      row.profile?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      row.leaveType?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredRows(filtered);
+  }, [searchTerm, rows]);
 
   const handleMenuOpen = (event, row) => {
     setAnchorEl(event.currentTarget);
     setSelectedRow(row);
   };
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedRow(null);
+  const handleMenuClose = () => setAnchorEl(null);
+
+  const handleStatusUpdate = async (newStatus) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${Base_url}/leave-status/${selectedRow._id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ activity: newStatus })
+      });
+      const res = await response.json();
+      if (res.success) {
+        toast.success(`Leave ${newStatus} successfully`);
+        fetchLeaves();
+      }
+    } catch (error) {
+      toast.error("Update failed");
+    }
+    handleMenuClose();
   };
 
   const columns = [
-    { id: "Name", label: "Name", align: "center" },
-    { id: "dateTime", label: "Date & Time", align: "center" },
-    { id: "leaveDuration", label: "Leave Duration", align: "center" },
-    { id: "leaveType", label: "Leave Type", align: "center" },
-    { id: "attachments", label: "Attachments", align: "center" },
-    { id: "status", label: "Status", align: "center" },
-    { id: "activity", label: "Activity", align: "center" },
-    { id: "actions", label: "Actions", align: "center" },
+    { id: "profile", label: "PROFILE" },
+    { id: "date", label: "DATE & TIME" },
+    { id: "leaveDuration", label: "LEAVE DURATION" },
+    { id: "leaveType", label: "LEAVE TYPE" },
+    { id: "attachments", label: "ATTACHMENTS", align: "center" },
+    { id: "status", label: "STATUS", align: "center" },
+    { id: "activity", label: "ACTIVITY", align: "center" },
+    { id: "actions", label: "ACTIONS", align: "center" },
   ];
-
-  // --- Dummy Data ---
-  useEffect(() => {
-    const dummyData = [
-      {
-        name: "Abhishek",
-        _id: "1",
-        date: "2025-05-10",
-        duration: "1 day",
-        leaveType: "Paid Casual",
-        status: "Rejected",
-      },
-      {
-        name: "Pankaj",
-        _id: "2",
-        date: "2025-01-06",
-        duration: "1 day",
-        leaveType: "Paid Casual",
-        status: "Rejected",
-      },
-      {
-        name: "Rahul",
-        _id: "3",
-        date: "2024-11-27",
-        duration: "3 days",
-        leaveType: "Paid Sick",
-        status: "Approved",
-      },
-    ];
-
-    const formattedData = dummyData.map((item) => createData(item));
-    setRows(formattedData);
-    setFilteredRows(formattedData);
-  }, []);
-
-  // Format Row Data
-  const createData = (item) => ({
-    Name: item.name,
-    dateTime: item.date,
-    leaveDuration: item.duration,
-    leaveType: item.leaveType,
-    attachments: (
-      <IconButton
-        size="small"
-        color="primary"
-        onClick={() => {
-          const link = document.createElement("a");
-          link.href = "/sample.pdf";
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          link.click();
-        }}
-      >
-        <PictureAsPdfIcon />
-      </IconButton>
-    ),
-    status: (
-      <Chip
-        label={item.status}
-        color={
-          item.status.toLowerCase() === "approved"
-            ? "success"
-            : item.status.toLowerCase() === "rejected"
-            ? "error"
-            : "warning"
-        }
-        size="small"
-      />
-    ),
-    activity: (
-      <Chip
-        label={item.status === "Approved" ? "Done" : "Pending"}
-        color={item.status === "Approved" ? "success" : "default"}
-        size="small"
-      />
-    ),
-    actions: (
-      <IconButton
-        color="primary"
-        size="small"
-        onClick={(e) => handleMenuOpen(e, item)}
-      >
-        <MoreVertIcon />
-      </IconButton>
-    ),
-  });
-
-  // --- Search filter ---
-  useEffect(() => {
-    const filtered = rows.filter(
-      (row) =>
-        row.dateTime.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        row.leaveType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        row.leaveDuration.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredRows(filtered);
-  }, [searchTerm, rows]);
-
-  const handleView = (data) => {
-    setViewData(data);
-    setViewShow(true);
-    handleMenuClose();
-  };
-
-  const handleDelete = (id) => {
-    setDeleteId(id);
-    setDeleteShow(true);
-    handleMenuClose();
-  };
-
-  // Pagination
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const handleChangePage = (_, newPage) => setPage(newPage);
-  const handleChangeRowsPerPage = (e) => {
-    setRowsPerPage(+e.target.value);
-    setPage(0);
-  };
 
   return (
     <Layout>
-      <ToastContainer />
-      <Box className="container">
-        {/* Search + Apply Button */}
-        <Search
-          onSearch={(term) => setSearchTerm(term)}
-          buttonText="Apply Leave"
-          onAddClick={() => toast.info("Apply Leave Clicked")}
-        />
+      <ToastContainer position="top-right" autoClose={3000} />
+      <Box sx={{ p: 3, bgcolor: "#f8f9fa", minHeight: "100vh" }}>
+        
+        {/* --- Header Section --- */}
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: "#1a2035" }}>Leave Status</Typography>
+          <Button 
+            variant="contained" 
+            onClick={() => setOpenCreate(true)}
+            sx={{ bgcolor: "#007bff", textTransform: "none", borderRadius: "8px", px: 3 }}
+          >
+            Apply Leave
+          </Button>
+        </Box>
 
-        {/* Table */}
-        <Paper sx={{ width: "100%", overflow: "hidden" }}>
-          <TableContainer sx={{ maxHeight: 440 }}>
+        {/* --- Filters & Search --- */}
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+          <Stack direction="row" spacing={2}>
+            <Button variant="outlined" sx={{ borderRadius: "20px", textTransform: "none", color: "#666", borderColor: "#ddd", bgcolor: "#fff" }}>Department</Button>
+            <Button variant="outlined" sx={{ borderRadius: "20px", textTransform: "none", color: "#666", borderColor: "#ddd", bgcolor: "#fff" }}>Users</Button>
+            <Button variant="outlined" sx={{ borderRadius: "20px", textTransform: "none", color: "error.main", borderColor: "error.main", bgcolor: "#fff" }}>Rejected</Button>
+          </Stack>
+          <Box sx={{ width: "300px" }}>
+            {/* <Search onSearch={(term) => setSearchTerm(term)} /> */}
+          </Box>
+        </Box>
+
+        {/* --- Table Container --- */}
+        <Paper sx={{ width: "100%", borderRadius: "12px", boxShadow: "0px 4px 20px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+          <TableContainer sx={{ maxHeight: "calc(100vh - 250px)" }}>
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
                   {columns.map((col) => (
-                    <TableCell
-                      key={col.id}
-                      align={col.align}
-                      style={{ fontWeight: 700 }}
-                    >
+                    <TableCell key={col.id} align={col.align} sx={{ fontWeight: 700, bgcolor: "#f1f4f9", color: "#555", fontSize: "12px" }}>
                       {col.label}
                     </TableCell>
                   ))}
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredRows.length > 0 ? (
-                  filteredRows
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((row, idx) => (
-                      <TableRow hover key={idx}>
-                        {columns.map((col) => (
-                          <TableCell key={col.id} align={col.align}>
-                            {row[col.id]}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
+                {loading ? (
+                  <TableRow><TableCell colSpan={8} align="center">Loading...</TableCell></TableRow>
+                ) : filteredRows.length > 0 ? (
+                  filteredRows.map((row) => (
+                    <TableRow hover key={row._id}>
+                      <TableCell sx={{ fontWeight: 500 }}>{row.profile}</TableCell>
+                      <TableCell>{new Date(row.date).toLocaleDateString()} {new Date(row.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</TableCell>
+                      <TableCell>{row.leaveDuration}</TableCell>
+                      <TableCell>{row.leaveType}</TableCell>
+                      <TableCell align="center">
+                        <IconButton size="small" color="primary">
+                          <PictureAsPdfIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip
+                          label={row.activity}
+                          size="small"
+                          sx={{ 
+                            bgcolor: row.activity === "Approved" ? "#e8f5e9" : row.activity === "Rejected" ? "#ffebee" : "#fff3e0",
+                            color: row.activity === "Approved" ? "#2e7d32" : row.activity === "Rejected" ? "#d32f2f" : "#ed6c02",
+                            fontWeight: 600, borderRadius: "6px"
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                         <Typography variant="body2" color="textSecondary">{row.activity === "Approved" ? "Done" : "Pending"}</Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton onClick={(e) => handleMenuOpen(e, row)}>
+                          <MoreVertIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} align="center">
-                      No results found
-                    </TableCell>
-                  </TableRow>
+                  <TableRow><TableCell colSpan={8} align="center">No results found</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
           </TableContainer>
-
-          <TablePagination
-            component="div"
-            rowsPerPageOptions={[10, 25, 100]}
-            count={filteredRows.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
         </Paper>
 
-        {/* Menu (3 dots options) */}
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleMenuClose}
-        >
-          <MenuItem onClick={() => handleView(selectedRow)}>Approve</MenuItem>
-          <MenuItem onClick={() => handleDelete(selectedRow?._id)}>
-            Reject
-          </MenuItem>
+        {/* Menu & Dialog */}
+        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+          <MenuItem onClick={() => handleStatusUpdate("Approved")}>Approve</MenuItem>
+          <MenuItem onClick={() => handleStatusUpdate("Rejected")}>Reject</MenuItem>
         </Menu>
 
-        {/* Dialog */}
         <CommonDialog
-          open={viewShow || deleteShow}
-          onClose={() => {
-            setViewShow(false);
-            setDeleteShow(false);
-          }}
-          dialogTitle={viewShow ? "View Leave" : deleteShow ? "Delete Leave" : ""}
-          dialogContent={
-            viewShow ? (
-              <pre>{JSON.stringify(viewData, null, 2)}</pre>
-            ) : deleteShow ? (
-              <p>Are you sure you want to delete this leave request?</p>
-            ) : null
-          }
+          open={openCreate}
+          onClose={() => setOpenCreate(false)}
+          dialogTitle="Apply Leave Request"
+          dialogContent={<Create onClose={() => setOpenCreate(false)} onRefresh={fetchLeaves} />}
         />
       </Box>
     </Layout>

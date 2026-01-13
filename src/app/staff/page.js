@@ -69,11 +69,7 @@ const StaffList = () => {
           },
         });
 
-        // if (response.status === 401) {
-        //   Cookies.remove("token");
-        //   window.location.href = "/login";
-        //   return;
-        // }
+        
 
         const res = await response.json();
 

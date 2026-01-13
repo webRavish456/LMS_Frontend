@@ -83,12 +83,13 @@ const ScheduleList = () => {
 
         const res = await response.json();
 
-        if (res.status === "unauthorized" || res.message === "Invalid token") {
-          toast.error("Session expired. Please login again.");
-          Cookies.remove("token");
-          router.push("/login");
-          return;
-        }
+        if (res.status === "unauthorized" || res.message === "Invalid token")
+          //  {
+        //   toast.error("Session expired. Please login again.");
+        //   Cookies.remove("token");
+        //   router.push("/login");
+        //   return;
+        // }
 
         if (res.status === "success") {
           const formattedData = res.data.map((item, index) =>

@@ -1,321 +1,192 @@
-'use client'
+'use client';
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { useParams } from "next/navigation";
+import {
+  Paper, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, Box, IconButton, Typography, Tooltip, Chip
+} from "@mui/material";
+
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-import {
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TablePagination,
-  TableRow,
-  Box,
-  IconButton,
-} from "@mui/material";
-
+// Layout & UI Components
+import Layout from "@/components/Layout"; 
+import Search from "@/components/Search/Search"; 
 import CommonDialog from "@/components/CommonDialog/CommonDialog";
-import ViewStudentsAssignment from "@/components/Assignment/StudentsAssignment/View/View";
-import CreateStudentsAssignment from "@/components/Assignment/StudentsAssignment/Create/Create";
-import EditStudentsAssignment from "@/components/Assignment/StudentsAssignment/Edit/Edit";
-import DeleteStudentsAssignment from "@/components/Assignment/StudentsAssignment/Delete/Delete";
-import Search from "@/components/Search/Search";
+
+// Students Assignment Components
+import Create from "@/components/Assignment/StudentsAssignment/Create/Create";
+import View from "@/components/Assignment/StudentsAssignment/View/View";
+import Edit from "@/components/Assignment/StudentsAssignment/Edit/Edit"; 
+import Delete from "@/components/Assignment/StudentsAssignment/Delete/Delete";
+
 import Cookies from "js-cookie";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import Layout from "@/components/Layout";
 
-const StudentsAssignment= () => {
-  const [openData, setOpenData] = useState(false);
-  const [viewShow, setViewShow] = useState(false);
-  const [editShow, setEditShow] = useState(false);
-  const [deleteShow, setDeleteShow] = useState(false);
-
-  const [viewData, setViewData] = useState(null);
-  const [editData, setEditData] = useState(null);
-  const [deleteId, setDeleteId] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
+export default function StudentsAssignmentPage() {
+  const { branch } = useParams();
   const [rows, setRows] = useState([]);
-  const [filteredRows, setFilteredRows] = useState([]);
-    const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const token = Cookies.get("token");
+  // Modal States (Exact Branch Page Logic)
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [selectedData, setSelectedData] = useState(null);
+
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
-  const columns = [
-
-    { id: "studentName", label: "Student Name", flex: 1, align: "center" },
-    { id: "mobileNumber", label: "Mobile Number", flex: 1, align: "center" },
-    { id: "assignmentTitle", label: "Assignment Title", flex: 1, align: "center" },
-    { id: "course", label: "Course", flex: 1, align: "center" },
-    { id: "teacher", label: "Teacher", flex: 1, align: "center" },
-    { id: "dueDate", label: "Due Date", flex: 1, align: "center" },
-    { id: "status", label: "Status", flex: 1, align: "center" },
-    { id: "action", label: "Action", flex: 1, align: "center" },
-  ];
-
-  useEffect(() => {
-    const fetchStudentsAssignmentData = async () => {
-      try {
-        const response = await fetch(`${Base_url}/studentsAssignment`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const result = await response.text();
-        const res = JSON.parse(result);
-
-        if (res.status === "success") {
-          setLoading(false);
-          const formattedData = res.data.map((item, index) =>
-            createData(
-              
-              item,
-              item.studentName,
-              item.assignmentTitle,
-              item.course,
-              item.teacher,
-              new Date(item.dueDate).toLocaleDateString("en-IN"),
-              item.mobileNumber,
-              item.status
-            )
-          );
-          setRows(formattedData);
-        }
-      } catch (error) {
-        console.error("Error fetching StudentsAssignment data:", error);
-      }
-    };
-
-    if (loading) {
-      fetchStudentsAssignmentData();
+  // 1. Fetch Data Logic (SSR Safe)
+  const fetchAssignmentData = useCallback(async () => {
+    // Client-side check for token
+    const token = Cookies.get("token") || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+    
+    if (!token) {
+      toast.error("Authentication token not found!");
+      setLoading(false);
+      return;
     }
-  }, [loading]);
 
-  const createData = ( row, studentName,assignmentTitle,course,teacher,dueDate, mobileNumber,status) => ({
-     row,studentName,assignmentTitle,course,teacher,dueDate,mobileNumber, status ,action: (
-      <>
-        <IconButton
-          style={{ color: "#072eb0", padding: "4px", transform: "scale(0.8)" }}
-          onClick={() => handleView(row)}
-        >
-          <VisibilityIcon />
-        </IconButton>
-        <IconButton
-          style={{ color: "#6b6666", padding: "4px", transform: "scale(0.8)" }}
-          onClick={() => handleEdit(row)}
-        >
-          <EditIcon />
-        </IconButton>
-        <IconButton
-          style={{ color: "#e6130b", padding: "4px", transform: "scale(0.8)" }}
-          onClick={() => handleShowDelete(row._id)}
-        >
-          <DeleteIcon />
-        </IconButton>
-      </>
-    ),
-  });
+    try {
+      setLoading(true);
+      const response = await fetch(`${Base_url}/studentsAssignment?branch=${branch}`, {
+        method: "GET",
+        headers: { 
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+      });
+      const res = await response.json();
+      if (res.status === "success") {
+        setRows(res.data || []);
+      }
+    } catch (error) {
+      toast.error("Failed to load assignments");
+    } finally {
+      setLoading(false);
+    }
+  }, [Base_url, branch]);
 
   useEffect(() => {
-      const filtered = rows.filter(
-        (row) =>
-          row.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          row.assignmentTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          row.course.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          row.teacher.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredRows(filtered);
-    }, [searchTerm, rows]);
+    fetchAssignmentData();
+  }, [fetchAssignmentData]);
 
-  const handleView = (row) => {
-    setViewData(row);
-    setViewShow(true);
-  };
+  // 2. Search Filter Logic
+  const filteredRows = useMemo(() => {
+    return rows.filter((row) =>
+      row.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      row.assignmentTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      row.course?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm, rows]);
 
-  const handleEdit = (data) => {
-    setEditData(data);
-    setEditShow(true);
-  };
-
-  const handleShowDelete = (id) => {
-    setDeleteId(id);
-    setDeleteShow(true);
-  };
-
-  const handleDelete = () => {
-    setIsDeleting(true);
-    fetch(`${Base_url}/studentsAssignment/${deleteId}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((response) => response.text())
-      .then((result) => {
-        const res = JSON.parse(result);
-        if (res.status === "success") {
-          toast.success("Student Assignment deleted successfully!");
-          setLoading(true);
-        } else {
-          toast.error(res.message);
-        }
-        setIsDeleting(false);
-        handleClose();
-      })
-      .catch((error) => {
-        console.error("Delete error:", error);
-        setIsDeleting(false);
+  // 3. Delete Handler
+  const handleConfirmDelete = async () => {
+    const token = Cookies.get("token") || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+    try {
+      const response = await fetch(`${Base_url}/studentsAssignment/${selectedData._id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` },
       });
-  };
-
-  const handleClose = () => {
-    setOpenData(false);
-    setViewShow(false);
-    setEditShow(false);
-    setDeleteShow(false);
-  };
-
-  const handleCreate = (data) => {
-    setLoading(data);
-  };
-
-  const handleUpdate = (data) => {
-     setLoading(data);
-  };
-
-  const onAddClick = () => setOpenData(true);
-
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-
-  const handleChangePage = (_, newPage) => setPage(newPage);
-  const handleChangeRowsPerPage = (e) => {
-    setRowsPerPage(+e.target.value);
-    setPage(0);
+      if (response.ok) {
+        toast.success("Assignment deleted!");
+        setIsDeleteOpen(false);
+        fetchAssignmentData();
+      }
+    } catch (error) {
+      toast.error("Delete failed");
+    }
   };
 
   return (
-    <>
     <Layout>
-      <ToastContainer />
-      <Box className="container">
+      <ToastContainer position="top-right" autoClose={3000} />
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h5" sx={{ fontWeight: 700, mb: 3, color: "#072eb0", textTransform: 'uppercase' }}>
+          Assignment List ({branch || 'General'})
+        </Typography>
+        
         <Search 
-          onSearch={(term) => {
-            setSearchTerm(term);
-            if (term.trim() === "") {
-              setFilteredRows(rows);
-            } else {
-              const filtered = rows.filter((row) =>
-                row.studentName.toLowerCase().includes(term.toLowerCase()) ||
-                row.mobileNumber.toLowerCase().includes(term.toLowerCase()) ||
-                row.assignmentTitle.toLowerCase().includes(term.toLowerCase()) ||
-                row.course.toLowerCase().includes(term.toLowerCase()) ||
-                row.teacher.toLowerCase().includes(term.toLowerCase()) ||
-                row.dueDate.toLowerCase().includes(term.toLowerCase()) ||
-                row.status.toLowerCase().includes(term.toLowerCase())
-              );
-              setFilteredRows(filtered);
-            }
-          }}
-          onAddClick={onAddClick}
-          buttonText="Add New Student's Assignment" />
-        <Paper sx={{ width: "100%", overflow: "hidden" }}>
-          <TableContainer sx={{ maxHeight: 440 }}>
-            <Table stickyHeader aria-label="studentsAssignment table">
-              <TableHead>
-                <TableRow>
-                  {columns.map((column) => (
-                    <TableCell
-                      key={column.id}
-                      align={column.align}
-                      style={{ fontWeight: 700 }}
-                    >
-                      {column.label}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                              {filteredRows.length > 0 ? (
-                                filteredRows
-                                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                                  .map((row, idx) => (
-                                    <TableRow hover role="checkbox" key={idx}>
-                                      {columns.map((column) => (
-                                        <TableCell key={column.id} align={column.align}>
-                                          {row[column.id]}
-                                        </TableCell>
-                                      ))}
-                                    </TableRow>
-                                  ))
-                              ) : (
-                                <TableRow>
-                                  <TableCell colSpan={columns.length} align="center">
-                                    No results found
-                                  </TableCell>
-                                </TableRow>
-                              )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <TablePagination
-            rowsPerPageOptions={[10, 25, 100]}
-            component="div"
-            count={rows.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
-        </Paper>
+          buttonText="Add Assignment" 
+          onAddClick={() => setIsCreateOpen(true)} 
+          onSearch={(term) => setSearchTerm(term)}
+        />
 
+        <TableContainer component={Paper} sx={{ mt: 3, borderRadius: "12px", border: "1px solid #eee", overflow: 'hidden' }}>
+          <Table stickyHeader>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: "#f8f9fa" }}>
+                <TableCell sx={{ fontWeight: 700 }}>SI.No</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Student Name</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Assignment Title</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Due Date</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 700 }}>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading ? (
+                <TableRow><TableCell colSpan={6} align="center">Loading Assignments...</TableCell></TableRow>
+              ) : filteredRows.length === 0 ? (
+                <TableRow><TableCell colSpan={6} align="center">No records found</TableCell></TableRow>
+              ) : (
+                filteredRows.map((row, index) => (
+                  <TableRow key={row._id} hover>
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell>{row.studentName}</TableCell>
+                    <TableCell>{row.assignmentTitle}</TableCell>
+                    <TableCell>{row.dueDate ? new Date(row.dueDate).toLocaleDateString("en-IN") : "N/A"}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={row.status} 
+                        size="small" 
+                        color={row.status === "Completed" ? "success" : "warning"} 
+                      />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="View">
+                        <IconButton color="primary" onClick={() => { setSelectedData(row); setIsViewOpen(true); }}>
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Edit">
+                        <IconButton sx={{ color: "#ed6c02" }} onClick={() => { setSelectedData(row); setIsEditOpen(true); }}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <IconButton color="error" onClick={() => { setSelectedData(row); setIsDeleteOpen(true); }}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        {/* --- Dialog Modals --- */}
         <CommonDialog
-          open={openData || viewShow || editShow || deleteShow}
-          onClose={handleClose}
-          dialogTitle={
-            openData
-              ? "Create New Student's Assignment"
-              : viewShow
-              ? "View  Student's Assignment"
-              : editShow
-              ? "Edit  Student's Assignment"
-              : deleteShow
-              ? "Delete  Student's Assignment"
-              : ""
-          }
+          open={isCreateOpen || isViewOpen || isEditOpen || isDeleteOpen}
+          onClose={() => { setIsCreateOpen(false); setIsViewOpen(false); setIsEditOpen(false); setIsDeleteOpen(false); }}
+          dialogTitle={isCreateOpen ? "Create Assignment" : isViewOpen ? "View Assignment" : isEditOpen ? "Edit Assignment" : "Delete Assignment"}
           dialogContent={
-            openData ? (
-              <CreateStudentsAssignment handleCreate={handleCreate} handleClose={handleClose} />
-            ) : viewShow ? (
-              <ViewStudentsAssignment viewData={viewData} />
-            ) : editShow ? (
-              <EditStudentsAssignment
-                editData={editData}
-                handleUpdate={handleUpdate}
-                handleClose={handleClose}
-              />
-            ) : deleteShow ? (
-              <DeleteStudentsAssignment
-                handleDelete={handleDelete}
-                isDeleting={isDeleting}
-                handleClose={handleClose}
-              />
-            ) : null
+            <Box sx={{ pt: 1 }}>
+               {isCreateOpen && <Create onClose={() => setIsCreateOpen(false)} onCreate={fetchAssignmentData} />}
+               {isViewOpen && <View data={selectedData} onClose={() => setIsViewOpen(false)} />}
+               {isEditOpen && <Edit data={selectedData} onClose={() => setIsEditOpen(false)} onUpdate={fetchAssignmentData} />}
+               {isDeleteOpen && <Delete data={selectedData} onClose={() => setIsDeleteOpen(false)} onConfirm={handleConfirmDelete} />}
+            </Box>
           }
         />
       </Box>
-      </Layout>
-    </>
+    </Layout>
   );
-};
-
-export default StudentsAssignment;
+}

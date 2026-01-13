@@ -74,7 +74,7 @@ const Header = () => {
 
     if (path === "/dashboard") return "Dashboard";
 
-    return ""; // Fallback in case no match is found
+    return ""; 
 
   };
 

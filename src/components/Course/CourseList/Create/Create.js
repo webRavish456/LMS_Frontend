@@ -1,145 +1,174 @@
-"use client";
-import React, { useState } from "react";
-import { Grid, TextField, Button, MenuItem, Box, CircularProgress } from "@mui/material";
-import { toast } from "react-toastify";
-import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import VideoFileIcon from "@mui/icons-material/VideoFile";
+'use client'
 
-const CreateCourseList = ({ handleClose, handleCreate }) => {
+import React, { useEffect, useState } from "react"
+import {
+    TextField, Grid, useMediaQuery, Button, Box, CircularProgress, MenuItem
+} from "@mui/material";
+import { useForm, Controller } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
+import { toast } from "react-toastify";
+import Cookies from 'js-cookie';
+
+const schema = yup.object().shape({
+    studentName: yup.string().required("Student Name is required"),
+    gender: yup.string().required("Gender is required"),
+    mobileNumber: yup.string().required("Mobile Number is required"),
+    emailId: yup.string().email("Invalid email").required("Email is required"),
+    dob: yup.string().required("DOB is required"),
+    address: yup.string().required("Address is required"),
+    enrollmentDate: yup.string().required("Enrollment Date is required"),
+    courseName: yup.string().required("Course is required"),
+});
+
+const CreateAllStudent = ({ handleCreate, handleClose }) => {
+    const [courses, setCourses] = useState([
+        { _id: "1", courseName: "Full Stack Development" },
+        { _id: "2", courseName: "Data Science & AI" },
+        { _id: "3", courseName: "UI/UX Design" },
+        { _id: "4", courseName: "Digital Marketing" },
+        { _id: "5", courseName: "Cyber Security" }
+    ]);
+    
+    const isSmScreen = useMediaQuery("(max-width:768px)");
+    const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
     const [loading, setLoading] = useState(false);
-    const [formData, setFormData] = useState({
-        courseId: "", 
-        courseName: "", 
-        courseDescription: "",
-        duration: "", 
-        pricing: "", 
-        assignedTeachers: "", // Input as string, converted to array on submit
-        syllabus: null, 
-        video: null, 
-        status: "Active"
+
+    // ✅ टोकन प्राप्त करने का सही तरीका
+    const token = Cookies.get('token') || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+
+    const { register, handleSubmit, control, formState: { errors }, reset } = useForm({
+        resolver: yupResolver(schema),
+        defaultValues: {
+            studentName: "", gender: "", mobileNumber: "", emailId: "",
+            dob: "", address: "", enrollmentDate: "", courseName: ""
+        }
     });
 
-    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    useEffect(() => {
+        const fetchCourseData = async () => {
+            if (!token) return;
+            try {
+                const response = await fetch(`${Base_url}/courselist`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                const result = await response.json();
+                if (result.status === "success" && result.data.length > 0) {
+                    setCourses(result.data);
+                }
+            } catch (error) {
+                console.log("Using dummy courses fallback");
+            }
+        };
+        fetchCourseData();
+    }, [Base_url, token]);
 
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        // Optional: Check file size (e.g., limit video to 50MB for stability)
-        if (e.target.name === "video" && file.size > 50 * 1024 * 1024) {
-            toast.error("Video file is too large (Max 50MB)");
-            return;
-        }
-
-        setFormData({ ...formData, [e.target.name]: file });
-    };
-
-    const handleSubmit = async (e) => {
-        if (e) e.preventDefault(); 
-        
-        const token = localStorage.getItem("token");
-
-        // 1. Validation
-        if (!formData.courseId || !formData.courseName || !formData.courseDescription || !formData.duration || !formData.pricing) {
-            toast.error("Please fill all required fields (*)");
+    const onSubmit = async (data) => {
+        if (!token) {
+            toast.error("Session expired. Please login again.");
             return;
         }
 
         setLoading(true);
+        const formdata = new FormData();
+        formdata.append("studentName", data.studentName);
+        formdata.append("gender", data.gender);
+        formdata.append("mobileNumber", data.mobileNumber);
+        formdata.append("emailId", data.emailId);
+        formdata.append("dob", data.dob);
+        formdata.append("address", data.address);
+        formdata.append("enrollmentDate", data.enrollmentDate);
+        formdata.append("course", data.courseName);
 
         try {
-            // 2. Prepare Payload
-            const payload = new FormData();
-            
-            Object.keys(formData).forEach(key => {
-                if (formData[key] !== null && formData[key] !== "") {
-                    // Convert teachers string to array if your backend expects an array
-                    if (key === "assignedTeachers" && typeof formData[key] === "string") {
-                        payload.append(key, formData[key]); 
-                    } else {
-                        payload.append(key, formData[key]);
-                    }
-                }
-            });
-
-            // 3. API Request
-            const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/courselist`, {
+            const response = await fetch(`${Base_url}/allstudents`, {
                 method: "POST",
+                body: formdata,
                 headers: { 
-                    Authorization: `Bearer ${token}` 
+                    "Authorization": `Bearer ${token.trim()}` // ✅ ट्रिम किया ताकि कोई एक्स्ट्रा स्पेस न रहे
                 },
-                body: payload 
             });
 
-            const result = await res.json();
+            const res = await response.json();
 
-            if (res.ok && result.status === "success") {
-                toast.success("Course Created Successfully!");
-                if (handleCreate) handleCreate(); // Refresh table
-                handleClose(); // Close Modal
+            if (res.status === "success") {
+                toast.success("Student Created Successfully!");
+                handleCreate(true);
+                handleClose();
+                reset();
             } else {
-                toast.error(result.message || "Failed to save course");
+                toast.error(res.message || "Something went wrong");
+                if (res.message === "Invalid token") {
+                    console.log("Check if JWT_SECRET in .env matches the one in Login Controller");
+                }
             }
         } catch (error) {
-            console.error("Submission Error:", error);
-            toast.error("Server connection failed. Check file sizes.");
+            console.error(error);
+            toast.error("Network error");
         } finally {
             setLoading(false);
         }
     };
 
+    const commonInputProps = {
+        fullWidth: true,
+        variant: "outlined",
+        sx: { "& .MuiOutlinedInput-root": { borderRadius: "10px", height: "55px" } }
+    };
+
     return (
-        <Box p={3}>
-            <form onSubmit={handleSubmit}>
-                <Grid container spacing={2}>
+        <Box sx={{ p: 1 }}>
+            <form onSubmit={handleSubmit(onSubmit)}>
+                <Grid container spacing={3}>
                     <Grid item xs={12} sm={6}>
-                        <TextField fullWidth label="Course ID *" name="courseId" onChange={handleChange} value={formData.courseId} disabled={loading} required />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <TextField fullWidth label="Course Name *" name="courseName" onChange={handleChange} value={formData.courseName} disabled={loading} required />
-                    </Grid>
-                    <Grid item xs={12}>
-                        <TextField fullWidth multiline rows={3} label="Description *" name="courseDescription" onChange={handleChange} value={formData.courseDescription} disabled={loading} required />
+                        <TextField {...commonInputProps} label="Student Name *" {...register("studentName")} error={!!errors.studentName} helperText={errors.studentName?.message} />
                     </Grid>
                     <Grid item xs={12} sm={6}>
-                        <TextField fullWidth label="Duration *" name="duration" placeholder="e.g. 6 Months" onChange={handleChange} value={formData.duration} disabled={loading} required />
+                        <Controller
+                            name="courseName"
+                            control={control}
+                            render={({ field }) => (
+                                <TextField {...field} {...commonInputProps} select label="Course Name *" error={!!errors.courseName} helperText={errors.courseName?.message}>
+                                    {courses.map((c) => (
+                                        <MenuItem key={c._id} value={c.courseName}>{c.courseName}</MenuItem>
+                                    ))}
+                                </TextField>
+                            )}
+                        />
                     </Grid>
                     <Grid item xs={12} sm={6}>
-                        <TextField fullWidth label="Pricing (INR) *" name="pricing" type="number" onChange={handleChange} value={formData.pricing} disabled={loading} required />
+                        <Controller
+                            name="gender"
+                            control={control}
+                            render={({ field }) => (
+                                <TextField {...field} {...commonInputProps} select label="Gender *" error={!!errors.gender} helperText={errors.gender?.message}>
+                                    <MenuItem value="male">Male</MenuItem>
+                                    <MenuItem value="female">Female</MenuItem>
+                                    <MenuItem value="others">Others</MenuItem>
+                                </TextField>
+                            )}
+                        />
                     </Grid>
-                    <Grid item xs={12}>
-                        <TextField fullWidth label="Assigned Teachers" name="assignedTeachers" placeholder="Comma separated names" onChange={handleChange} value={formData.assignedTeachers} disabled={loading} />
-                    </Grid>
-                    
                     <Grid item xs={12} sm={6}>
-                        <Button variant="outlined" component="label" fullWidth startIcon={<CloudUploadIcon />} color={formData.syllabus ? "success" : "primary"} disabled={loading}>
-                            {formData.syllabus ? formData.syllabus.name.substring(0, 15) + "..." : "Syllabus (PDF)"}
-                            <input type="file" hidden accept=".pdf" name="syllabus" onChange={handleFileChange} />
-                        </Button>
+                        <TextField {...commonInputProps} label="DOB *" type="date" InputLabelProps={{ shrink: true }} {...register("dob")} error={!!errors.dob} helperText={errors.dob?.message} />
                     </Grid>
-
                     <Grid item xs={12} sm={6}>
-                        <Button variant="outlined" component="label" fullWidth startIcon={<VideoFileIcon />} color={formData.video ? "success" : "secondary"} disabled={loading}>
-                            {formData.video ? formData.video.name.substring(0, 15) + "..." : "Upload Video"}
-                            <input type="file" hidden accept="video/*" name="video" onChange={handleFileChange} />
-                        </Button>
+                        <TextField {...commonInputProps} label="Mobile Number *" type="number" {...register("mobileNumber")} error={!!errors.mobileNumber} helperText={errors.mobileNumber?.message} />
                     </Grid>
-
-                    <Grid item xs={12}>
-                        <TextField select fullWidth label="Status" name="status" value={formData.status} onChange={handleChange} disabled={loading}>
-                            <MenuItem value="Active">Active</MenuItem>
-                            <MenuItem value="Inactive">Inactive</MenuItem>
-                        </TextField>
+                    <Grid item xs={12} sm={6}>
+                        <TextField {...commonInputProps} label="Email Id *" {...register("emailId")} error={!!errors.emailId} helperText={errors.emailId?.message} />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <TextField {...commonInputProps} label="Address *" {...register("address")} error={!!errors.address} helperText={errors.address?.message} />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <TextField {...commonInputProps} label="Enrollment Date *" type="date" InputLabelProps={{ shrink: true }} {...register("enrollmentDate")} error={!!errors.enrollmentDate} helperText={errors.enrollmentDate?.message} />
                     </Grid>
                 </Grid>
-
-                <Box mt={4} display="flex" justifyContent="flex-end" gap={2}>
-                    <Button type="button" onClick={handleClose} disabled={loading} variant="outlined" color="inherit">
-                        Cancel
-                    </Button>
-
-                    <Button type="submit" variant="contained" disabled={loading} sx={{ bgcolor: "#072eb0", px: 4, minWidth: "140px" }}>
-                        {loading ? <CircularProgress size={24} color="inherit" /> : "Create Course"}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 4 }}>
+                    <Button onClick={handleClose} variant="outlined" color="inherit" sx={{ borderRadius: "8px", px: 4 }}>Cancel</Button>
+                    <Button type="submit" variant="contained" sx={{ bgcolor: "#072eb0", borderRadius: "8px", px: 4 }} disabled={loading}>
+                        {loading ? <CircularProgress size={20} sx={{ color: "white" }} /> : "SUBMIT"}
                     </Button>
                 </Box>
             </form>
@@ -147,4 +176,4 @@ const CreateCourseList = ({ handleClose, handleCreate }) => {
     );
 };
 
-export default CreateCourseList;
+export default CreateAllStudent;

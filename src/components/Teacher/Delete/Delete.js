@@ -18,7 +18,7 @@ export default function Delete({ open, onClose, teacher, onConfirm }) {
         <Button 
           variant="contained" 
           color="error" 
-          onClick={() => onConfirm(teacher._id)} // यहाँ ID पास हो रही है
+          onClick={() => onConfirm(teacher._id)} 
         >
           Yes, Delete
         </Button>
