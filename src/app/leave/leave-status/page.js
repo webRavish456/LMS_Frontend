@@ -51,13 +51,11 @@ const LeaveStatus = () => {
           <Typography variant="h5" sx={{ fontWeight: 600, color: "#1a2035" }}>
             Leave Status
           </Typography>
-          <Button 
-            variant="contained" 
-            onClick={handleOpen}
-            sx={{ bgcolor: "#007bff", textTransform: "none", borderRadius: "8px", px: 3 }}
-          >
-            Apply Leave
-          </Button>
+          <Search 
+          buttonText="Apply Leave" 
+          onAddClick={handleOpen} 
+          onSearch={(term) => setSearchTerm(term)}
+        />
         </Box>
 
         {/* --- Filter & Search Section --- */}
@@ -70,6 +68,7 @@ const LeaveStatus = () => {
             {/* <Search onSearch={(term) => setSearchTerm(term)} /> */}
           </Box>
         </Box>
+        
 
         {/* --- Date Filter Header (Image Style) --- */}
         <Paper sx={{ p: 2, mb: 0, borderRadius: "12px 12px 0 0", boxShadow: "none", border: "1px solid #eee", borderBottom: "none" }}>

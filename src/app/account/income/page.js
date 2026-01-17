@@ -1,161 +1,145 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableFooter,
-  TablePagination,
-  Box,
-  Button,
-  TextField,
-  IconButton,
+  Paper, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, TablePagination, Box, IconButton, Typography, Stack
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
+import { toast, ToastContainer } from "react-toastify";
 import Layout from "@/components/Layout";
 import Search from "@/components/Search";
+import CommonDialog from "@/components/CommonDialog/CommonDialog";
+
+// Icons
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+
+// Modals
+import CreateIncome from "@/components/Account/Income/Create/Create";
+import EditIncome from "@/components/Account/Income/Edit/Edit";
+import ViewIncome from "@/components/Account/Income/View/View";
+import DeleteIncome from "@/components/Account/Income/Delete/Delete";
 
 const IncomePage = () => {
-  const initialData = [
-    { id: 1, source: "Salary", amount: 50000 },
-    { id: 2, source: "Freelance", amount: 20000 },
-  ];
-
   const [incomes, setIncomes] = useState([]);
   const [filteredIncomes, setFilteredIncomes] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sourceInput, setSourceInput] = useState("");
-  const [amountInput, setAmountInput] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  useEffect(() => {
-    setIncomes(initialData);
-    setFilteredIncomes(initialData);
-  }, []);
+  const [modalMode, setModalMode] = useState(null); 
+  const [selectedData, setSelectedData] = useState(null);
+
+  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
+
+  const fetchIncomes = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    try {
+      const response = await fetch(`${Base_url}/income`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const res = await response.json();
+      if (res.status === "success" || res.success) {
+        setIncomes(res.data || []);
+        setFilteredIncomes(res.data || []);
+      }
+    } catch (error) {
+      toast.error("Failed to load incomes");
+    }
+  }, [Base_url]);
+
+  useEffect(() => { fetchIncomes(); }, [fetchIncomes]);
 
   useEffect(() => {
-    const filtered = incomes.filter((inc) =>
-      inc.source.toLowerCase().includes(searchTerm.toLowerCase())
+    const filtered = incomes.filter(inc =>
+      inc.source?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredIncomes(filtered);
     setPage(0);
   }, [searchTerm, incomes]);
 
-  const handleAdd = () => {
-    if (!sourceInput.trim() || !amountInput) return;
-    const newIncome = {
-      id: incomes.length + 1,
-      source: sourceInput.trim(),
-      amount: parseFloat(amountInput),
-    };
-    setIncomes((prev) => [...prev, newIncome]);
-    setSourceInput("");
-    setAmountInput("");
-  };
-
-  const handleDelete = (id) => {
-    setIncomes((prev) => prev.filter((inc) => inc.id !== id));
-  };
-
-  const handleChangePage = (_, newPage) => setPage(newPage);
-  const handleChangeRowsPerPage = (e) => {
-    setRowsPerPage(+e.target.value);
-    setPage(0);
+  const handleClose = () => {
+    setModalMode(null);
+    setSelectedData(null);
   };
 
   return (
     <Layout>
-      <Box p={2}>
-        <h1>Income Management</h1>
+      <ToastContainer position="top-right" autoClose={3000} />
+      <Box p={3}>
+        <Typography variant="h5" fontWeight={700} mb={3}>Income Management</Typography>
 
-        {/* Search and Add button */}
         <Search
           onSearch={(term) => setSearchTerm(term)}
+          onAddClick={() => setModalMode("create")}
           buttonText="Add Income"
-          onAddClick={handleAdd}
         />
 
-        {/* Add inputs for new income */}
-        <Box sx={{ display: "flex", gap: 2, marginBottom: 2, marginTop: 1 }}>
-          <TextField
-            label="Income Source"
-            variant="outlined"
-            value={sourceInput}
-            onChange={(e) => setSourceInput(e.target.value)}
-            fullWidth
-          />
-          <TextField
-            label="Amount"
-            variant="outlined"
-            type="number"
-            value={amountInput}
-            onChange={(e) => setAmountInput(e.target.value)}
-            sx={{ width: "150px" }}
-          />
-          <Button variant="contained" onClick={handleAdd}>
-            Add
-          </Button>
-        </Box>
-
-        <Paper sx={{ marginTop: 2 }}>
+        <Paper sx={{ marginTop: 3, borderRadius: '12px', overflow: 'hidden' }}>
           <TableContainer>
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell>SI.No</TableCell>
-                  <TableCell>Income Source</TableCell>
-                  <TableCell>Amount (₹)</TableCell>
-                  <TableCell>Actions</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, bgcolor: "#f5f5f5" }}>SI.No</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, bgcolor: "#f5f5f5" }}>Income Source</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, bgcolor: "#f5f5f5" }}>Amount (₹)</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, bgcolor: "#f5f5f5" }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredIncomes
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((inc, idx) => (
-                    <TableRow key={inc.id} hover>
-                      <TableCell>{page * rowsPerPage + idx + 1}</TableCell>
-                      <TableCell>{inc.source}</TableCell>
-                      <TableCell>{inc.amount}</TableCell>
-                      <TableCell>
-                        <IconButton
-                          color="error"
-                          onClick={() => handleDelete(inc.id)}
-                          aria-label="delete"
-                        >
-                          <DeleteIcon />
+                {filteredIncomes.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((inc, idx) => (
+                  <TableRow key={inc._id} hover>
+                    <TableCell align="center">{page * rowsPerPage + idx + 1}</TableCell>
+                    <TableCell align="center">{inc.source}</TableCell>
+                    <TableCell align="center">₹{inc.amount}</TableCell>
+                    <TableCell align="center">
+                      <Stack direction="row" spacing={1} justifyContent="center">
+                        <IconButton color="primary" onClick={() => { setSelectedData(inc); setModalMode("view"); }}>
+                          <VisibilityIcon fontSize="small" />
                         </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                {filteredIncomes.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} align="center">
-                      No Incomes Found
+                        <IconButton color="inherit" onClick={() => { setSelectedData(inc); setModalMode("edit"); }}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton color="error" onClick={() => { setSelectedData(inc); setModalMode("delete"); }}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
                     </TableCell>
                   </TableRow>
-                )}
+                ))}
               </TableBody>
-              <TableFooter>
-                <TableRow>
-                  <TablePagination
-                    rowsPerPageOptions={[5, 10, 25]}
-                    count={filteredIncomes.length}
-                    rowsPerPage={rowsPerPage}
-                    page={page}
-                    onPageChange={handleChangePage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                    colSpan={4}
-                  />
-                </TableRow>
-              </TableFooter>
             </Table>
           </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 25]}
+            component="div"
+            count={filteredIncomes.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            onRowsPerPageChange={(e) => { setRowsPerPage(+e.target.value); setPage(0); }}
+          />
         </Paper>
+
+        <CommonDialog
+          open={!!modalMode}
+          onClose={handleClose}
+          maxWidth="sm"
+          fullWidth
+          dialogTitle={
+            <Typography component="span" variant="h6" fontWeight={700}>
+              {modalMode === 'create' ? "Add New Income" : 
+               modalMode === 'edit' ? "Update Income" : 
+               modalMode === 'view' ? "Income Details" : "Delete Income"}
+            </Typography>
+          }
+          dialogContent={
+            modalMode === 'create' ? <CreateIncome handleCreate={fetchIncomes} handleClose={handleClose} /> :
+            modalMode === 'edit' ? <EditIncome editData={selectedData} handleUpdate={fetchIncomes} handleClose={handleClose} /> :
+            modalMode === 'view' ? <ViewIncome viewData={selectedData} handleClose={handleClose} /> :
+            modalMode === 'delete' ? <DeleteIncome deleteId={selectedData?._id} handleDelete={fetchIncomes} handleClose={handleClose} /> : null
+          }
+        />
       </Box>
     </Layout>
   );

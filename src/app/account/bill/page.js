@@ -1,10 +1,10 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Paper, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, TableFooter, TablePagination, Box, IconButton
+  TableHead, TableRow, TablePagination, Box, IconButton, Typography
 } from "@mui/material";
-import { toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
 import Create from "@/components/Account/Bill/Create/Create";
 import Edit from "@/components/Account/Bill/Edit/Edit";
 import View from "@/components/Account/Bill/View/View";
@@ -14,159 +14,132 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Layout from "@/components/Layout";
 import Search from "@/components/Search";
+import CommonDialog from "@/components/CommonDialog/CommonDialog";
 
 const BillPage = () => {
-  const initialData = [
-    { id: 1, name: "Electricity Bill", amount: 1200 },
-    { id: 2, name: "Water Bill", amount: 300 },
-  ];
-
   const [bills, setBills] = useState([]);
-  const [filteredBills, setFilteredBills] = useState([]);
+  const [filteredBills, setFilteredBills] = useState([]); // This is your state name
   const [searchTerm, setSearchTerm] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [viewData, setViewData] = useState(null);
-  const [viewOpen, setViewOpen] = useState(false);
-  const [editData, setEditData] = useState(null);
-  const [editOpen, setEditOpen] = useState(false);
-  const [deleteData, setDeleteData] = useState(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  
+  const [modalMode, setModalMode] = useState(null); 
+  const [selectedData, setSelectedData] = useState(null);
+
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  useEffect(() => {
-    setBills(initialData);
-    setFilteredBills(initialData);
-  }, []);
+  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
+  const fetchBills = useCallback(async () => {
+    try {
+      const response = await fetch(`${Base_url}/bill`);
+      const res = await response.json();
+      if (res.status === "success" || res.success) {
+        setBills(res.data || []);
+        setFilteredBills(res.data || []);
+      }
+    } catch (error) {
+      toast.error("Failed to fetch bills");
+    }
+  }, [Base_url]);
+
+  useEffect(() => {
+    fetchBills();
+  }, [fetchBills]);
+
+  // --- Search Logic (Fixed Line 56) ---
   useEffect(() => {
     const filtered = bills.filter((bill) =>
-      bill.name.toLowerCase().includes(searchTerm.toLowerCase())
+      bill.billName?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    setFilteredBills(filtered);
+    setFilteredBills(filtered); // ✅ Matches state name
   }, [searchTerm, bills]);
 
-  const handleChangePage = (_, newPage) => setPage(newPage);
-  const handleChangeRowsPerPage = (e) => {
-    setRowsPerPage(+e.target.value);
-    setPage(0);
-  };
-
-  const handleCreate = (newBill) => {
-    setBills((prev) => [...prev, { ...newBill, id: prev.length + 1 }]);
-    toast.success("Bill added successfully!");
-  };
-
-  const handleView = (bill) => {
-    setViewData(bill);
-    setViewOpen(true);
-  };
-
-  const handleEdit = (bill) => {
-    setEditData(bill);
-    setEditOpen(true);
-  };
-
-  const handleUpdate = (updatedBill) => {
-    setBills((prev) =>
-      prev.map((b) => (b.id === updatedBill.id ? updatedBill : b))
-    );
-    setEditOpen(false);
-    toast.success("Bill updated successfully!");
-  };
-
-  const handleDelete = (bill) => {
-    setDeleteData(bill);
-    setDeleteOpen(true);
-  };
-
-  const confirmDelete = () => {
-    setBills((prev) => prev.filter((b) => b.id !== deleteData.id));
-    setDeleteOpen(false);
-    toast.success("Bill deleted successfully!");
+  const handleClose = () => {
+    setModalMode(null);
+    setSelectedData(null);
   };
 
   return (
     <Layout>
-      <Box p={2}>
-        <h1>Bill Management</h1>
+      <ToastContainer position="top-right" autoClose={3000} />
+      <Box p={3}>
+        <Typography variant="h5" fontWeight={700} mb={3}>Bill Management</Typography>
 
-        {/* Search component with Add Bill button */}
         <Search
           onSearch={(term) => setSearchTerm(term)}
-          onAddClick={() => setCreateOpen(true)}
+          onAddClick={() => setModalMode("create")}
           buttonText="Add Bill"
         />
 
-        <Paper sx={{ marginTop: 2 }}>
-          <TableContainer>
+        <Paper sx={{ marginTop: 3, borderRadius: '12px', overflow: 'hidden' }}>
+          <TableContainer sx={{ maxHeight: 440 }}>
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell>SI.No</TableCell>
-                  <TableCell>Bill Name</TableCell>
-                  <TableCell>Amount</TableCell>
-                  <TableCell>Actions</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>SI.No</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>Bill Name</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>Amount</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredBills
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((bill, idx) => (
-                    <TableRow key={bill.id} hover>
-                      <TableCell>{page * rowsPerPage + idx + 1}</TableCell>
-                      <TableCell>{bill.name}</TableCell>
-                      <TableCell>₹{bill.amount}</TableCell>
-                      <TableCell>
-                        <IconButton onClick={() => handleView(bill)} color="primary">
-                          <VisibilityIcon />
-                        </IconButton>
-                        <IconButton onClick={() => handleEdit(bill)} color="secondary">
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton onClick={() => handleDelete(bill)} color="error">
-                          <DeleteIcon />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                {filteredBills.length === 0 && (
+                {filteredBills.length > 0 ? (
+                  filteredBills
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((bill, idx) => (
+                      <TableRow key={bill._id} hover>
+                        <TableCell align="center">{page * rowsPerPage + idx + 1}</TableCell>
+                        <TableCell align="center">{bill.billName}</TableCell>
+                        <TableCell align="center">₹{bill.amount}</TableCell>
+                        <TableCell align="center">
+                          <IconButton onClick={() => { setSelectedData(bill); setModalMode("view"); }} color="primary">
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton onClick={() => { setSelectedData(bill); setModalMode("edit"); }} color="inherit">
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton onClick={() => { setSelectedData(bill); setModalMode("delete"); }} color="error">
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                ) : (
                   <TableRow>
-                    <TableCell colSpan={4} align="center">
-                      No Bills Found
-                    </TableCell>
+                    <TableCell colSpan={4} align="center" sx={{ py: 3 }}>No Bills Found</TableCell>
                   </TableRow>
                 )}
               </TableBody>
-              <TableFooter>
-                <TableRow>
-                  <TablePagination
-                    rowsPerPageOptions={[5, 10, 25]}
-                    count={filteredBills.length}
-                    rowsPerPage={rowsPerPage}
-                    page={page}
-                    onPageChange={handleChangePage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                    colSpan={4}
-                  />
-                </TableRow>
-              </TableFooter>
             </Table>
           </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 25]}
+            component="div"
+            count={filteredBills.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            onRowsPerPageChange={(e) => { setRowsPerPage(+e.target.value); setPage(0); }}
+          />
         </Paper>
 
-        {/* Create Dialog modal */}
-        {createOpen && (
-          <Create
-            onClose={() => setCreateOpen(false)}
-            onCreate={(newBill) => {
-              handleCreate(newBill);
-              setCreateOpen(false);
-            }}
-          />
-        )}
-
-        {/* View, Edit, Delete dialogs - add as needed */}
+        <CommonDialog
+          open={!!modalMode}
+          onClose={handleClose}
+          dialogTitle={
+            <Typography component="span" variant="h6" fontWeight={700}>
+              {modalMode === 'create' ? "Create Bill" : 
+               modalMode === 'edit' ? "Edit Bill" : 
+               modalMode === 'view' ? "Bill Details" : "Delete Bill"}
+            </Typography>
+          }
+          dialogContent={
+            modalMode === 'create' ? <Create handleCreate={fetchBills} handleClose={handleClose} /> :
+            modalMode === 'edit' ? <Edit editData={selectedData} handleUpdate={fetchBills} handleClose={handleClose} /> :
+            modalMode === 'view' ? <View viewData={selectedData} handleClose={handleClose} /> :
+            modalMode === 'delete' ? <Delete deleteId={selectedData?._id} handleDelete={fetchBills} handleClose={handleClose} /> : null
+          }
+        />
       </Box>
     </Layout>
   );

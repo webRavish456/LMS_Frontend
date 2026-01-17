@@ -1,39 +1,24 @@
-'use client'
+'use client';
+import React from "react";
+import { Box, Typography, Button, Stack } from "@mui/material";
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
-import { Box, Button, CircularProgress } from "@mui/material";
-import React from "react"
-
-const DeleteStudentsAssignment= ({handleClose, isDeleting, handleDelete }) =>
-{
-     
-    
-
-     return (
-     <>
-    
-           <Box sx={{ width: '400px', padding: '20px', bgcolor: 'background.paper',textAlign:'flex-end' }}>
-             Are you sure want to delete?
-           </Box>
-           <Box className="submit" sx={{ display: 'flex', justifyContent: 'flex-end', gap: '15px', margin: '20px'}}>
-            <Button onClick={handleClose} className="secondary_button" >Cancel</Button>
-            <Button  onClick={handleDelete} className="delete_button">
-           
-            {isDeleting ? ( <>
-            <CircularProgress
-            size={18}
-            style={{ marginRight: 8, color: "#fff" }}
-             /> 
-              Deleting
-             </> 
-            )   : 
-               "Delete"
-           }
-
-            </Button>
-
-            </Box>
-     </>
-     )
+export default function Delete({ data, handleClose, onConfirm }) {
+  return (
+    <Box sx={{ textAlign: "center", py: 2 }}>
+      <WarningAmberIcon sx={{ fontSize: 60, color: "#d32f2f", mb: 2 }} />
+      <Typography variant="h6" sx={{ mb: 1 }}>Are you sure?</Typography>
+      <Typography sx={{ mb: 3, color: "#666" }}>
+        You are about to delete assignment for <strong>{data?.studentName}</strong>. This action cannot be undone.
+      </Typography>
+      <Stack direction="row" spacing={2} justifyContent="center">
+        <Button onClick={handleClose} variant="outlined" sx={{ minWidth: 100 }}>
+          Cancel
+        </Button>
+        <Button onClick={onConfirm} variant="contained" color="error" sx={{ minWidth: 100 }}>
+          Delete
+        </Button>
+      </Stack>
+    </Box>
+  );
 }
-
-export default DeleteStudentsAssignment;

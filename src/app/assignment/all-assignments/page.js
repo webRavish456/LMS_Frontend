@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
-import Search from "@/components/Search"; // ✅ SAME IMPORT STYLE
+import Search from "@/components/Search"; 
 import CommonDialog from "@/components/CommonDialog/CommonDialog";
 
 import ViewAllAssignment from "@/components/Assignment/AllAssignment/View/View";

@@ -1,94 +1,45 @@
-'use client'
+'use client';
+import React from "react";
+import { Grid, Typography, Box, Divider, Button } from "@mui/material";
 
-import React from "react"
-import { Box, Grid,  useMediaQuery} from "@mui/material";
+export default function View({ data, handleClose }) {
+  if (!data) return null;
 
-const ViewStudentsAssignment =({viewData})=>
-{
-    const isSmScreen = useMediaQuery("(max-width:768px)");
+  const infoStyle = { mb: 2 };
+  const labelStyle = { fontWeight: 700, color: "#555", display: "block" };
 
-
-
-     return (
-        <>
-          <Grid container columnSpacing={3} rowSpacing={1}>
-
-          <Grid size={{xs:12, sm:isSmScreen?12:6, md:6}} style={{display:"flex"}}>
-            
-            <Grid size={{xs:6}}>
-            <Box className="pageTitle"> Student Name:</Box> 
-            </Grid>  
-            <Grid size={{xs:6}}>
-            <Box className="pageDescription">{viewData.studentName}</Box>
-            </Grid>
-
-            </Grid>
-
-            <Grid size={{xs:12, sm:isSmScreen?12:6, md:6}} style={{display:"flex"}}>
-
-            <Grid size={{xs:6}}>
-            <Box className="pageTitle">Mobile Number:</Box>    
-            </Grid>
-            <Grid size={{xs:6}}>
-            <Box className="pageDescription">{viewData.mobileNumber}</Box>
-            </Grid>
-            </Grid>
-
-            <Grid size={{xs:12, sm:isSmScreen?12:6, md:6}} style={{display:"flex"}}>
-            
-            <Grid size={{xs:6}}>
-            <Box className="pageTitle"> Assignment Title:</Box> 
-            </Grid>  
-            <Grid size={{xs:6}}>
-            <Box className="pageDescription">{viewData.assignmentTitle}</Box>
-            </Grid>
-
-            </Grid>
-
-            <Grid size={{xs:12, sm:isSmScreen?12:6, md:6}} style={{display:"flex"}}>
-
-            <Grid size={{xs:6}}>
-            <Box className="pageTitle">Course:</Box>    
-            </Grid>
-            <Grid size={{xs:6}}>
-            <Box className="pageDescription">{viewData.course}</Box>
-            </Grid>
-            </Grid>
-            <Grid size={{xs:12, sm:isSmScreen?12:6, md:6}} style={{display:"flex"}}>
-
-            <Grid size={{xs:6}}>
-            <Box className="pageTitle">Teacher:</Box>    
-            </Grid>
-            <Grid size={{xs:6}}>
-            <Box className="pageDescription">{viewData.teacher}</Box>
-            </Grid>
-            </Grid>
-            <Grid size={{xs:12, sm:isSmScreen?12:6, md:6}} style={{display:"flex"}}>
-
-            <Grid size={{xs:6}}>
-            <Box className="pageTitle">Due Date:</Box>    
-            </Grid>
-            <Grid size={{xs:6}}>
-            <Box className="pageDescription">{new Date(viewData.dueDate).toLocaleDateString("en-IN")}</Box>
-            </Grid>
-            </Grid>
-        
-
-            <Grid size={{xs:12, sm:isSmScreen?12:6, md:6}} style={{display:"flex"}}>
-
-            <Grid size={{xs:6}}>
-            <Box className="pageTitle">Status:</Box> 
-            </Grid>   
-            <Grid size={{xs:6}}>
-            <Box className="pageDescription">{viewData.status}</Box>
-            </Grid>
-
-            </Grid>
-
-            </Grid>
-
-        </>
-     )
+  return (
+    <Box sx={{ p: 1 }}>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
+          <Box sx={infoStyle}>
+            <Typography sx={labelStyle}>Student Name</Typography>
+            <Typography>{data.studentName}</Typography>
+          </Box>
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <Box sx={infoStyle}>
+            <Typography sx={labelStyle}>Assignment Title</Typography>
+            <Typography>{data.assignmentTitle}</Typography>
+          </Box>
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <Box sx={infoStyle}>
+            <Typography sx={labelStyle}>Due Date</Typography>
+            <Typography>{new Date(data.dueDate).toLocaleDateString("en-IN")}</Typography>
+          </Box>
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <Box sx={infoStyle}>
+            <Typography sx={labelStyle}>Status</Typography>
+            <Typography>{data.status}</Typography>
+          </Box>
+        </Grid>
+      </Grid>
+      <Divider sx={{ my: 2 }} />
+      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+        <Button onClick={handleClose} variant="contained">Close</Button>
+      </Box>
+    </Box>
+  );
 }
-
-export default ViewStudentsAssignment;

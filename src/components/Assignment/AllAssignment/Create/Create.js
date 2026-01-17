@@ -1,273 +1,202 @@
 'use client'
 
-import React, {useEffect, useState} from "react"
+import React, { useEffect, useState } from "react"
 import {
-    TextField,
-    Grid,
-    Button,
-    Box,
-    CircularProgress,
-    useMediaQuery,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem
-  } from "@mui/material";
+  TextField,
+  Grid,
+  Button,
+  Box,
+  CircularProgress,
+  useMediaQuery,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
+} from "@mui/material";
 
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import {  toast } from "react-toastify";
+import { toast } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import Cookies from 'js-cookie';
 
+const schema = yup.object().shape({
+  assignmentTitle: yup.string().required("Assignment Title Name is required"),
+  course: yup.string().required("Course is required"),
+  teacher: yup.string().required("Teacher Name is required"),
+  dueDate: yup.string().required("Due Date is required"),
+});
 
-  const schema = yup.object().shape({
-    assignmentTitle: yup.string().required("Assignment Title Name is required"),
-    course: yup.string().required("Course is required"),
-    teacher: yup.string().required("Teacher Name is required"),
-    dueDate: yup.string().required("Due Date is required"),
+const CreateAllAssignment = ({ handleCreate, handleClose }) => {
+  // Random data fallback taaki dropdown khali na dikhe
+  const [courseName, setCourseName] = useState([
+    { courseName: "Random Course A" },
+    { courseName: "Random Course B" }
+  ]);
+  const [teacherName, setTeacherName] = useState([
+    { teacherName: "Random Teacher X" },
+    { teacherName: "Random Teacher Y" }
+  ]);
+  
+  const [loading, setLoading] = useState(false);
+  const isSmScreen = useMediaQuery("(max-width:768px)");
+   const token = Cookies.get("token") || localStorage.getItem("token");
+  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm({
+    resolver: yupResolver(schema),
   });
 
-const CreateAllAssignment =({handleCreate, handleClose})=>
-{
-  
-  const [courseName, setCourseName] = useState([]);
-  const isSmScreen = useMediaQuery("(max-width:768px)");
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const headers = { Authorization: `Bearer ${token}` };
+        const [resCourse, resTeacher] = await Promise.all([
+          fetch(`${Base_url}/courselist`, { headers }),
+          fetch(`${Base_url}/teacher`, { headers })
+        ]);
+        const dataCourse = await resCourse.json();
+        const dataTeacher = await resTeacher.json();
 
-  const [teacherName, setTeacherName] = useState([]);
-
-    const token = Cookies.get('token');
-
-    const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
-  
-    const [loading, setLoading] = useState(false)
-
-    const [loadingData, setLoadingData] = useState(true)
-  
-    const {
-      register,
-      handleSubmit,
-      formState: { errors },
-      reset,
-    } = useForm({
-      resolver: yupResolver(schema),
-    });
-  
-
-    useEffect(() => {
-      const fetchCourseData = async () => {
-        try {
-          const response = await fetch(`${Base_url}/courselist`, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-          const result = await response.json();
-          if (result.status === "success") {
-            setCourseName(result.data);
-            setLoadingData(false);
-          }
-        } catch (error) {
-          console.error("Error fetching course data:", error);
-        }
-      };
-  
-      const fetchTeacherData = async () => {
-        try {
-          const response = await fetch(`${Base_url}/teacher`, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-          const result = await response.json();
-          if (result.status === "success") {
-            setTeacherName(result.data);
-            setLoadingData(false);
-          }
-        } catch (error) {
-          console.error("Error fetching course data:", error);
-        }
-      };
-  
-      if (loadingData) {
-        fetchCourseData();
-        fetchTeacherData();
+        // Agar API se data milta hai toh update karein, warna random data rahega
+        if (dataCourse.status === "success" && dataCourse.data.length > 0) setCourseName(dataCourse.data);
+        if (dataTeacher.status === "success" && dataTeacher.data.length > 0) setTeacherName(dataTeacher.data);
+      } catch (error) {
+        console.error("Fetch error:", error);
       }
-    }, [loadingData]);
-  
-    const onSubmit = (data) => {
-    
-           setLoading(true)
-  
-          const formdata = new FormData();
-          formdata.append("assignmentTitle", data.assignmentTitle);
-          formdata.append("course", data.course);
-          formdata.append("teacher", data.teacher);
-          formdata.append("dueDate", data.dueDate);
-
-          
-          const requestOptions = {
-            method: "POST",
-            body: formdata,
-            headers: {
-              Authorization: `Bearer ${token}`, 
-             },
-          };
-      
-          fetch(`${Base_url}/allAssignment`, requestOptions)
-            .then((response) => response.text())
-      
-            .then((result) => {
-      
-              const res = JSON.parse(result)
-      
-              if(res.status==="success")
-              {
-                setLoading(false)
-               
-                toast.success("Assignment Created Successfully!")
-                handleCreate(true)
-                handleClose()
-                reset();
-              }
-              else {
-      
-                setLoading(false)
-                toast.error(res.message)
-      
-              }
-            })
-            .catch((error) => console.error(error));
     };
+    if (token) fetchData();
+  }, [token, Base_url]);
 
-     return (
-        <>
-        
+  const onSubmit = (data) => {
+    setLoading(true);
+    const formdata = new FormData();
+    formdata.append("assignmentTitle", data.assignmentTitle);
+    formdata.append("course", data.course);
+    formdata.append("teacher", data.teacher);
+    formdata.append("dueDate", data.dueDate);
+
+    fetch(`${Base_url}/allAssignment`, {
+      method: "POST",
+      body: formdata,
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((res) => {
+        setLoading(false);
+        if (res.status === "success") {
+          toast.success("Assignment Created Successfully!");
+          handleCreate(true);
+          handleClose();
+          reset();
+        } else {
+          toast.error(res.message);
+        }
+      })
+      .catch(() => setLoading(false));
+  };
+
+  return (
+    <Box sx={{ p: 2 }}>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Grid container columnSpacing={2}>
+        {/* Grid container with spacing for better look */}
+        <Grid container spacing={2}>
           
-          <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}}>
+          <Grid item xs={12} sm={6}>
             <TextField
-              type="text"
-              label={
-                <>
-                  Assignment Title <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-                </>
-              }
-              //variant="standard"
+              fullWidth
+              variant="outlined"
+              label={<>Assignment Title <span style={{ color: "red" }}>*</span></>}
               {...register("assignmentTitle")}
               error={!!errors.assignmentTitle}
-              fullWidth
-              margin="normal"
+              helperText={errors.assignmentTitle?.message}
             />
-            <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-              {errors.assignmentTitle?.message}
-            </div>
           </Grid>
 
-          
-          <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}}>
-            <FormControl 
-            fullWidth
-            margin="normal"
-            //variant="standard"
-            error={!!errors.course}
-            >
-           <InputLabel>
-           Course Name<span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-           </InputLabel>
-
-           <Select
-           label="Course Name"
-           {...register("course")}
-           >
-            {courseName.map((course,index) => (
-              <MenuItem key={index} value={course.courseName}>
-            {course.courseName}
-              </MenuItem>
-            ))}
-            
-           </Select>
-           
-            <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-              {errors.course?.message}
-            </div>
+          {/* Course Name Dropdown - Same style as Due Date */}
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth variant="outlined" error={!!errors.course}>
+              <InputLabel id="course-label">Course Name *</InputLabel>
+              <Select
+                labelId="course-label"
+                label="Course Name *"
+                defaultValue=""
+                {...register("course")}
+              >
+                {courseName.map((course, index) => (
+                  <MenuItem key={index} value={course.courseName}>
+                    {course.courseName}
+                  </MenuItem>
+                ))}
+              </Select>
+              {errors.course && (
+                <div style={{ color: "red", fontSize: "0.75rem", paddingLeft: "14px", marginTop: "4px" }}>
+                  {errors.course.message}
+                </div>
+              )}
             </FormControl>
           </Grid>
 
-          <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}}>
-            <TextField
-              select
-              label={
-                <>
-                  Teacher Name <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-                </>
-              }
-              variant="outlined"
-              {...register("teacher")}
-              error={!!errors.teacher}
-              fullWidth
-              margin="normal"
-            >
-              {teacherName.map((teacher, index) => (
-                <MenuItem key={index} value={teacher.teacherName}>
-                  {teacher.teacherName}
-                </MenuItem>
-              ))}
-            </TextField>
-            <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-              {errors.teacher?.message}
-            </div>
+          {/* Teacher Name Dropdown - Same style as Due Date */}
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth variant="outlined" error={!!errors.teacher}>
+              <InputLabel id="teacher-label">Teacher Name *</InputLabel>
+              <Select
+                labelId="teacher-label"
+                label="Teacher Name *"
+                defaultValue=""
+                {...register("teacher")}
+              >
+                {teacherName.map((teacher, index) => (
+                  <MenuItem key={index} value={teacher.teacherName}>
+                    {teacher.teacherName}
+                  </MenuItem>
+                ))}
+              </Select>
+              {errors.teacher && (
+                <div style={{ color: "red", fontSize: "0.75rem", paddingLeft: "14px", marginTop: "4px" }}>
+                  {errors.teacher.message}
+                </div>
+              )}
+            </FormControl>
           </Grid>
 
-
-          <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}}>
+          <Grid item xs={12} sm={6}>
             <TextField
+              fullWidth
+              variant="outlined"
               type="date"
-              InputLabelProps={{shrink : true}}
-              label={
-                <>
-                 Due Date <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-                </>
-              }
-             
+              InputLabelProps={{ shrink: true }}
+              label={<>Due Date <span style={{ color: "red" }}>*</span></>}
               {...register("dueDate")}
               error={!!errors.dueDate}
-              fullWidth
-              margin="normal"
+              helperText={errors.dueDate?.message}
             />
-            <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-              {errors.dueDate?.message}
-            </div>
           </Grid>
-         
         </Grid>
 
-        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 2 }}>
-          <Button type="submit" onClick={handleClose} className="secondary_button">
+        {/* Buttons logic */}
+        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 3 }}>
+          <Button type="button" onClick={handleClose} className="secondary_button">
             Cancel
           </Button>
           <Button type="submit" className="primary_button">
-
-          {loading ? (
-       <>
-         <CircularProgress size={18} 
-          style={{ marginRight: 8, color: "#fff" }} />
-                Submitting
-            </>
+            {loading ? (
+              <><CircularProgress size={18} sx={{ color: "white", mr: 1 }} /> Submitting</>
             ) : (
-            "Submit"
+              "Submit"
             )}
-
           </Button>
         </Box>
       </form>
-
-        </>
-     )
+    </Box>
+  );
 }
 
 export default CreateAllAssignment;

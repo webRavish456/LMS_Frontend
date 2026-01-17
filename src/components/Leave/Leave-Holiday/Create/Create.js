@@ -1,12 +1,14 @@
 "use client";
 
-import { Button, TextField, Box, Typography, Stack } from "@mui/material";
+import { Button, TextField, Box, Grid, Typography } from "@mui/material";
 import React, { useState } from "react";
 import { toast } from "react-toastify";
 
 export default function Create({ onClose, onRefresh }) {
-  const [name, setName] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [formData, setFormData] = useState({ 
+    name: "", // बैकएंड मॉडल 'name' मांग रहा है
+    date: ""  // बैकएंड मॉडल 'date' मांग रहा है
+  });
   
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
@@ -14,79 +16,56 @@ export default function Create({ onClose, onRefresh }) {
     e.preventDefault();
     const token = localStorage.getItem("token");
 
-    // Model ke structure ke mutabiq payload
-    const payload = { name, date };
+    // ✅ बैकएंड कंट्रोलर 'multipart/form-data' मांग रहा है
+    const data = new FormData();
+    data.append("name", formData.name);
+    data.append("date", formData.date);
 
     try {
       const response = await fetch(`${Base_url}/holiday`, {
         method: "POST",
         headers: { 
-          "Content-Type": "application/json",
           "Authorization": `Bearer ${token}` 
+          // Note: FormData के साथ Content-Type मैन्युअल सेट न करें
         },
-        body: JSON.stringify(payload),
+        body: data,
       });
 
       const res = await response.json();
-      if (res.success) {
-        toast.success("Holiday Added Successfully!");
-        if (onRefresh) onRefresh(); 
-        onClose(); 
+      if (res.status === "success") {
+        toast.success("Holiday created successfully!");
+        onRefresh();
+        onClose();
       } else {
-        toast.error(res.message || "Error adding holiday");
+        toast.error(res.message || "Failed to create holiday");
       }
     } catch (error) {
-      toast.error("Server connection failed");
+      toast.error("Server connection error");
     }
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit} sx={{ p: 1 }}>
-      {/* Day Name Field (Matches 'name' in Model) */}
-      <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>
-        Day Name
-      </Typography>
-      <TextField
-        fullWidth
-        placeholder="Enter day name (e.g. Sunday)"
-        size="small"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        required
-        sx={{ mb: 2 }}
-      />
-
-      {/* Date Field (Matches 'date' in Model) */}
-      <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>
-        Date
-      </Typography>
-      <TextField
-        fullWidth
-        type="date"
-        size="small"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-        required
-        sx={{ mb: 4 }}
-      />
-
-      {/* Action Buttons */}
-      <Stack direction="row" spacing={2} justifyContent="flex-end">
-        <Button 
-          onClick={onClose} 
-          variant="outlined" 
-          sx={{ textTransform: "none", borderRadius: "6px", px: 4, borderColor: "#007bff", color: "#007bff" }}
-        >
-          Cancel
-        </Button>
-        <Button 
-          type="submit" 
-          variant="contained" 
-          sx={{ textTransform: "none", borderRadius: "6px", px: 5, bgcolor: "#007bff" }}
-        >
-          Add
-        </Button>
-      </Stack>
+    <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, minWidth: "400px" }}>
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>Holiday Name</Typography>
+          <TextField 
+            fullWidth size="small" placeholder="e.g. Independence Day"
+            value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required 
+          />
+        </Grid>
+        <Grid item xs={12}>
+          <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>Date</Typography>
+          <TextField 
+            fullWidth type="date" size="small" InputLabelProps={{ shrink: true }}
+            value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} required 
+          />
+        </Grid>
+        <Grid item xs={12} sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 2 }}>
+          <Button onClick={onClose} variant="outlined">Cancel</Button>
+          <Button type="submit" variant="contained" sx={{ bgcolor: "#007bff" }}>Save</Button>
+        </Grid>
+      </Grid>
     </Box>
   );
 }

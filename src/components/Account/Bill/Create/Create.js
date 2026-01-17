@@ -1,53 +1,76 @@
 "use client";
-
 import React, { useState } from "react";
+import { Box, TextField, Grid, Button } from "@mui/material";
+import { toast } from "react-toastify";
 
-const Create = ({ onCreate, onClose }) => {
-  const [name, setName] = useState("");
-  const [amount, setAmount] = useState("");
+const Create = ({ handleCreate, handleClose }) => {
+  const [formData, setFormData] = useState({
+    studentName: "",
+    mobileNo: "",
+    courseAsssigned: "",
+    admissionDate: new Date().toISOString().split('T')[0],
+    tax: 0,
+    discount: 0,
+    paidAmount: 0,
+    totalAmount: 0
+  });
 
-  const handleSubmit = (e) => {
+  // Base_url should point to your backend (e.g., http://localhost:8000/api)
+  const Base_url = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000/api";
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name || !amount) {
-      alert("Please fill all fields");
-      return;
+    const token = localStorage.getItem("token"); // For Authorization
+
+    try {
+      const response = await fetch(`${Base_url}/bill`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` 
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const res = await response.json();
+      
+      if (res.status === "success" || res.success) {
+        toast.success("Bill saved to database!");
+        handleCreate(); 
+        handleClose();  
+      } else {
+        toast.error(res.message || "Failed to save");
+      }
+    } catch (error) {
+      toast.error("Network error: Server is not reachable");
     }
-    onCreate({ name, amount: parseFloat(amount) });
+  };
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   return (
-    <div style={{ padding: 20, background: "white", borderRadius: 8, maxWidth: 400 }}>
-      <h2>Create Bill</h2>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 8 }}>
-          <label>Bill Name:</label>
-          <br />
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            style={{ width: "100%", padding: "8px" }}
-          />
-        </div>
-        <div style={{ marginBottom: 8 }}>
-          <label>Amount:</label>
-          <br />
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-            style={{ width: "100%", padding: "8px" }}
-          />
-        </div>
-        <button type="submit" style={{ marginRight: 10 }}>
-          Create
-        </button>
-        <button type="button" onClick={onClose}>
-          Cancel
-        </button>
-      </form>
-    </div>
+    <Box component="form" onSubmit={handleSubmit} sx={{ p: 2 }}>
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={6}>
+          <TextField fullWidth label="Student Name" name="studentName" onChange={handleChange} required />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <TextField fullWidth label="Mobile" name="mobileNo" onChange={handleChange} required />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <TextField fullWidth type="number" label="Total Amount" name="totalAmount" onChange={handleChange} required />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <TextField fullWidth type="number" label="Paid Amount" name="paidAmount" onChange={handleChange} required />
+        </Grid>
+      </Grid>
+      <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end", gap: 2 }}>
+        <Button onClick={handleClose}>Cancel</Button>
+        <Button type="submit" variant="contained">Save Bill</Button>
+      </Box>
+    </Box>
   );
 };
 

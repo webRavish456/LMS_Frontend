@@ -2,11 +2,17 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
+import Cookies from "js-cookie";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+// MUI Components
 import {
   Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Box, IconButton, Typography, Tooltip, Chip
 } from "@mui/material";
 
+// MUI Icons
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -22,39 +28,31 @@ import View from "@/components/Assignment/StudentsAssignment/View/View";
 import Edit from "@/components/Assignment/StudentsAssignment/Edit/Edit"; 
 import Delete from "@/components/Assignment/StudentsAssignment/Delete/Delete";
 
-import Cookies from "js-cookie";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-
 export default function StudentsAssignmentPage() {
   const { branch } = useParams();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Modal States (Exact Branch Page Logic)
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isViewOpen, setIsViewOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  // Modal States
+  const [modalMode, setModalMode] = useState(null); 
   const [selectedData, setSelectedData] = useState(null);
 
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
-  // 1. Fetch Data Logic (SSR Safe)
+  // --- 1. Fetch Data Logic ---
   const fetchAssignmentData = useCallback(async () => {
-    // Client-side check for token
-    const token = Cookies.get("token") || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+    const token = Cookies.get("token") || localStorage.getItem("token");
     
     if (!token) {
-      toast.error("Authentication token not found!");
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      const response = await fetch(`${Base_url}/studentsAssignment?branch=${branch}`, {
+      // Backend route /api/studentsAssignment ko call karega
+      const response = await fetch(`${Base_url}/studentsAssignment`, {
         method: "GET",
         headers: { 
           "Authorization": `Bearer ${token}`,
@@ -70,37 +68,44 @@ export default function StudentsAssignmentPage() {
     } finally {
       setLoading(false);
     }
-  }, [Base_url, branch]);
+  }, [Base_url]);
 
   useEffect(() => {
     fetchAssignmentData();
   }, [fetchAssignmentData]);
 
-  // 2. Search Filter Logic
+  // --- 2. Search Filter Logic ---
   const filteredRows = useMemo(() => {
     return rows.filter((row) =>
       row.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      row.assignmentTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      row.course?.toLowerCase().includes(searchTerm.toLowerCase())
+      row.assignmentTitle?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [searchTerm, rows]);
 
-  // 3. Delete Handler
+  // --- 3. Delete Logic ---
   const handleConfirmDelete = async () => {
-    const token = Cookies.get("token") || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+    const token = Cookies.get("token") || localStorage.getItem("token");
     try {
       const response = await fetch(`${Base_url}/studentsAssignment/${selectedData._id}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` },
       });
-      if (response.ok) {
-        toast.success("Assignment deleted!");
-        setIsDeleteOpen(false);
-        fetchAssignmentData();
+      const res = await response.json();
+      if (response.ok && res.status === "success") {
+        toast.success("Assignment deleted successfully!");
+        closeModals();
+        fetchAssignmentData(); // List Refresh
+      } else {
+        toast.error(res.message || "Delete failed");
       }
     } catch (error) {
-      toast.error("Delete failed");
+      toast.error("Network error while deleting");
     }
+  };
+
+  const closeModals = () => {
+    setModalMode(null);
+    setSelectedData(null);
   };
 
   return (
@@ -108,12 +113,13 @@ export default function StudentsAssignmentPage() {
       <ToastContainer position="top-right" autoClose={3000} />
       <Box sx={{ p: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700, mb: 3, color: "#072eb0", textTransform: 'uppercase' }}>
-          Assignment List ({branch || 'General'})
+          Student Assignments List
         </Typography>
         
+        {/* Search & Add Button */}
         <Search 
           buttonText="Add Assignment" 
-          onAddClick={() => setIsCreateOpen(true)} 
+          onAddClick={() => setModalMode('create')} 
           onSearch={(term) => setSearchTerm(term)}
         />
 
@@ -131,14 +137,14 @@ export default function StudentsAssignmentPage() {
             </TableHead>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={6} align="center">Loading Assignments...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} align="center">Loading assignments...</TableCell></TableRow>
               ) : filteredRows.length === 0 ? (
-                <TableRow><TableCell colSpan={6} align="center">No records found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} align="center">No assignments found</TableCell></TableRow>
               ) : (
                 filteredRows.map((row, index) => (
                   <TableRow key={row._id} hover>
                     <TableCell>{index + 1}</TableCell>
-                    <TableCell>{row.studentName}</TableCell>
+                    <TableCell sx={{ fontWeight: 500 }}>{row.studentName}</TableCell>
                     <TableCell>{row.assignmentTitle}</TableCell>
                     <TableCell>{row.dueDate ? new Date(row.dueDate).toLocaleDateString("en-IN") : "N/A"}</TableCell>
                     <TableCell>
@@ -146,21 +152,22 @@ export default function StudentsAssignmentPage() {
                         label={row.status} 
                         size="small" 
                         color={row.status === "Completed" ? "success" : "warning"} 
+                        sx={{ fontWeight: 600 }}
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Tooltip title="View">
-                        <IconButton color="primary" onClick={() => { setSelectedData(row); setIsViewOpen(true); }}>
+                      <Tooltip title="View Details">
+                        <IconButton color="primary" onClick={() => { setSelectedData(row); setModalMode('view'); }}>
                           <VisibilityIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Edit">
-                        <IconButton sx={{ color: "#ed6c02" }} onClick={() => { setSelectedData(row); setIsEditOpen(true); }}>
+                      <Tooltip title="Edit Assignment">
+                        <IconButton sx={{ color: "#ed6c02" }} onClick={() => { setSelectedData(row); setModalMode('edit'); }}>
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton color="error" onClick={() => { setSelectedData(row); setIsDeleteOpen(true); }}>
+                      <Tooltip title="Delete Assignment">
+                        <IconButton color="error" onClick={() => { setSelectedData(row); setModalMode('delete'); }}>
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
@@ -172,17 +179,21 @@ export default function StudentsAssignmentPage() {
           </Table>
         </TableContainer>
 
-        {/* --- Dialog Modals --- */}
+        {/* --- Dialog Management --- */}
         <CommonDialog
-          open={isCreateOpen || isViewOpen || isEditOpen || isDeleteOpen}
-          onClose={() => { setIsCreateOpen(false); setIsViewOpen(false); setIsEditOpen(false); setIsDeleteOpen(false); }}
-          dialogTitle={isCreateOpen ? "Create Assignment" : isViewOpen ? "View Assignment" : isEditOpen ? "Edit Assignment" : "Delete Assignment"}
+          open={!!modalMode}
+          onClose={closeModals}
+          dialogTitle={
+            modalMode === 'create' ? "Add New Assignment" : 
+            modalMode === 'view' ? "Assignment Details" : 
+            modalMode === 'edit' ? "Modify Assignment" : "Confirm Deletion"
+          }
           dialogContent={
             <Box sx={{ pt: 1 }}>
-               {isCreateOpen && <Create onClose={() => setIsCreateOpen(false)} onCreate={fetchAssignmentData} />}
-               {isViewOpen && <View data={selectedData} onClose={() => setIsViewOpen(false)} />}
-               {isEditOpen && <Edit data={selectedData} onClose={() => setIsEditOpen(false)} onUpdate={fetchAssignmentData} />}
-               {isDeleteOpen && <Delete data={selectedData} onClose={() => setIsDeleteOpen(false)} onConfirm={handleConfirmDelete} />}
+               {modalMode === 'create' && <Create handleClose={closeModals} handleCreate={fetchAssignmentData} />}
+               {modalMode === 'view' && <View data={selectedData} handleClose={closeModals} />}
+               {modalMode === 'edit' && <Edit data={selectedData} handleClose={closeModals} handleUpdate={fetchAssignmentData} />}
+               {modalMode === 'delete' && <Delete data={selectedData} handleClose={closeModals} onConfirm={handleConfirmDelete} />}
             </Box>
           }
         />
