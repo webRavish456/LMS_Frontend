@@ -1,5 +1,4 @@
 'use client'
-
 import React, { useEffect, useState } from "react";
 import { 
   Box, TextField, Button, Typography, Grid, 
@@ -13,13 +12,10 @@ const EditProfile = ({ data, handleClose }) => {
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState(data?.profilePhoto || null);
-  
-  // 1. TOKEN STATE ADD KI HAI (Aapke code mein ye missing tha)
   const [token, setToken] = useState(null);
 
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
-  // 2. TOKEN LOAD KARNA
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
     if (savedToken) {
@@ -27,7 +23,6 @@ const EditProfile = ({ data, handleClose }) => {
     }
   }, []);
 
-  // 3. FORM RESET & DATA FILL
   useEffect(() => {
     if (data) {
       reset({
@@ -49,7 +44,6 @@ const EditProfile = ({ data, handleClose }) => {
   };
 
   const onSubmit = async (formData) => {
-    // Check if token exists
     const currentToken = token || localStorage.getItem("token");
     if (!currentToken) {
       toast.error("Session expired. Please login again.");
@@ -58,13 +52,28 @@ const EditProfile = ({ data, handleClose }) => {
 
     setLoading(true);
     try {
+     
+      const dataToSend = new FormData();
+      dataToSend.append("name", formData.name);
+      dataToSend.append("email", formData.email);
+      dataToSend.append("mobileNo", formData.mobileNo);
+      dataToSend.append("address", formData.address);
+      dataToSend.append("dob", formData.dob);
+
+      
+      const fileInput = document.getElementById('edit-photo');
+      if (fileInput && fileInput.files[0]) {
+        dataToSend.append("profilePhoto", fileInput.files[0]);
+      }
+
+      
       const response = await fetch(`${Base_url}/profile/${data._id}`, {
-        method: "PUT", 
+        method: "PATCH", 
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${currentToken}`, // Fixed: currentToken use kiya
+          "Authorization": `Bearer ${currentToken}`,
+          
         },
-        body: JSON.stringify(formData),
+        body: dataToSend,
       });
 
       const res = await response.json();
@@ -85,7 +94,6 @@ const EditProfile = ({ data, handleClose }) => {
 
   return (
     <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ p: 2 }}>
-      {/* Avatar Section */}
       <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
         <Box sx={{ position: 'relative' }}>
           <Avatar src={preview} sx={{ width: 100, height: 100, bgcolor: '#20a4ad' }} />
@@ -106,7 +114,6 @@ const EditProfile = ({ data, handleClose }) => {
         </Box>
       </Box>
 
-      {/* Fields */}
       <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
           <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 'bold' }}>Full Name</Typography>
@@ -134,7 +141,6 @@ const EditProfile = ({ data, handleClose }) => {
         </Grid>
       </Grid>
 
-      {/* Actions */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 2 }}>
         <Button onClick={handleClose} variant="outlined" color="inherit">Cancel</Button>
         <Button

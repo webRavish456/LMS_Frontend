@@ -119,11 +119,6 @@ const Menuitems = [
    ]
   },
  
-  {
-    icon: '/sidebar/payroll.png',
-    label: "Payroll",
-    href: "/payroll",
-  },
   
   {
     icon: "/sidebar/videoclass.png",
@@ -194,16 +189,8 @@ const Menuitems = [
   label:"Report",
   href:"/report",
 },
-{
-icon:"/sidebar/compilance.png",
-label:"Compilance",
-href:"/compilance",
-},
-{
-icon:"/sidebar/api.png",
-label:"Integration",
-href:"/integration",
-},
+
+
 {
   icon:"/sidebar/notification.png",
   label:"Notification",
@@ -216,21 +203,13 @@ icon:"/sidebar/classroom.png",
 label:"ClassRoom",
 href:"/classroom",
 },
-{
-icon:"/sidebar/management.png",
-label:"AlumniManagement",
-href:"/alumnimanagement",
-},
+
 {
 icon:"sidebar/adaptive.png",
 label:"Adaptive-Learning",
 href:"/adaptive-learning",
 },
-{
-icon:"/sidebar/language.png",
-label:"Language",
-href:"/language",
-},
+
 {
 icon:"/sidebar/feedback.png",
 label:"Feedback",
@@ -248,6 +227,17 @@ href:"/feedback",
     icon: "/sidebar/result.png",
     label: "Results",
     href: "/result",
+  },
+
+  {
+    icon:"/sidebar/profile.png",
+    label:"Profile",
+    href:"/profile",
+  },
+  {
+    icon:"/sidebar/setting.png",
+    label:"Setting",
+    href:"setting",
   },
 
 ];
