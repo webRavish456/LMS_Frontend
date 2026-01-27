@@ -1,291 +1,280 @@
 "use client";
-import * as React from "react";
+
+import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
+
 import {
   Box,
-  Button,
-  TextField,
+  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  Chip,
-  Menu,
-  MenuItem,
+  TextField,
+  Button,
   IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
 } from "@mui/material";
+
 import AddIcon from "@mui/icons-material/Add";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import DescriptionIcon from "@mui/icons-material/Description";
+import SearchIcon from "@mui/icons-material/Search";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 
-// Function to create attendance data
-function createData(id, userId, date, punchedIn, punchedOut, requestType, totalHours, status) {
-  return { id, userId, date, punchedIn, punchedOut, requestType, totalHours, status };
-}
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
-export default function AttendanceRequest() {
-  const [rows, setRows] = React.useState([]); // Empty table initially
-  const [search, setSearch] = React.useState("");
+export default function AttendanceDetails() {
+  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
-  // Actions Menu
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const [selectedRow, setSelectedRow] = React.useState(null);
+  const [rows, setRows] = useState([]);
+  const [search, setSearch] = useState("");
+  const [filteredRows, setFilteredRows] = useState([]);
 
-  const handleMenuClick = (event, rowIndex) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedRow(rowIndex);
-  };
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState("add"); // add | edit | view
+  const [selectedId, setSelectedId] = useState(null);
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedRow(null);
-  };
-
-  const handleApprove = () => {
-    if (selectedRow !== null) {
-      const updatedRows = [...rows];
-      updatedRows[selectedRow].status = "Approved";
-      setRows(updatedRows);
-    }
-    handleMenuClose();
-  };
-
-  const handleReject = () => {
-    if (selectedRow !== null) {
-      const updatedRows = [...rows];
-      updatedRows[selectedRow].status = "Rejected";
-      setRows(updatedRows);
-    }
-    handleMenuClose();
-  };
-
-  // Add Attendance Dialog
-  const [openDialog, setOpenDialog] = React.useState(false);
-  const [newData, setNewData] = React.useState({
-    userId: "",
-    date: "",
-    punchedIn: "",
-    punchedOut: "",
-    requestType: "new",
-    totalHours: "",
-    status: "Pending",
+  const [form, setForm] = useState({
+    employee: "",
+    punchIn: "",
+    punchOut: "",
+    note: "",
   });
 
-  const handleOpenDialog = () => setOpenDialog(true);
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
-    setNewData({
-      userId: "",
-      date: "",
-      punchedIn: "",
-      punchedOut: "",
-      requestType: "new",
-      totalHours: "",
-      status: "Pending",
-    });
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewData({ ...newData, [name]: value });
-  };
-
-  const handleSave = () => {
-    if (!newData.userId || !newData.date || !newData.punchedIn || !newData.punchedOut || !newData.totalHours) {
-      alert("Please fill all fields!");
-      return;
+  /* ================= FETCH FROM DB ================= */
+  const fetchAttendance = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${BASE_URL}/attendance-request`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRows(data.data);
+      }
+    } catch (err) {
+      console.error(err);
     }
-    const newRow = createData(
-      rows.length + 1, // Attendance ID
-      newData.userId,
-      newData.date,
-      newData.punchedIn,
-      newData.punchedOut,
-      newData.requestType,
-      newData.totalHours,
-      newData.status
-    );
-    setRows([...rows, newRow]);
-    handleCloseDialog();
   };
 
-  // Filtered rows by search
-  const filteredRows = rows.filter((row) =>
-    row.userId.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    fetchAttendance();
+  }, []);
+
+  /* ================= SEARCH ================= */
+  useEffect(() => {
+    setFilteredRows(
+      rows.filter((r) =>
+        r.employee?.toLowerCase().includes(search.toLowerCase())
+      )
+    );
+  }, [search, rows]);
+
+  /* ================= OPEN MODALS ================= */
+  const openAdd = () => {
+    setMode("add");
+    setSelectedId(null);
+    setForm({ employee: "", punchIn: "", punchOut: "", note: "" });
+    setOpen(true);
+  };
+
+  const openEdit = (row) => {
+    setMode("edit");
+    setSelectedId(row._id);
+    setForm(row);
+    setOpen(true);
+  };
+
+  const openView = (row) => {
+    setMode("view");
+    setForm(row);
+    setOpen(true);
+  };
+
+  /* ================= SAVE ================= */
+  const handleSave = async () => {
+  try {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(
+      `${BASE_URL}/attendance-request`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(form),
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || "Server error");
+    }
+
+    toast.success("Attendance saved successfully");
+    setOpen(false);
+    fetchAttendance();
+
+  } catch (error) {
+    console.error(error);
+    toast.error("Server error");
+  }
+};
+
+
+  /* ================= DELETE ================= */
+  const handleDelete = async (id) => {
+    if (!confirm("Are you sure you want to delete?")) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${BASE_URL}/attendance-request/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await res.json();
+
+      if (result.success) {
+        toast.success("Attendance deleted");
+        fetchAttendance();
+      }
+    } catch (err) {
+      toast.error("Delete failed");
+    }
+  };
 
   return (
     <Layout>
-      {/* Search + Add Button */}
-      <Box display="flex" justifyContent="flex-end" alignItems="center" gap={2} mb={2}>
-        <TextField
-          size="small"
-          placeholder="Search..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleOpenDialog}
-          sx={{
-            backgroundColor: "blue",
-            textTransform: "none",
-            fontWeight: "bold",
-            "&:hover": { backgroundColor: "#0047ab" },
-          }}
-        >
-          Add Attendance
-        </Button>
-      </Box>
+      <ToastContainer position="top-right" autoClose={3000} />
 
-      {/* Attendance Table */}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell><b>Attendance ID</b></TableCell>
-              <TableCell><b>User ID</b></TableCell>
-              <TableCell><b>Date</b></TableCell>
-              <TableCell><b>Punch In Time</b></TableCell>
-              <TableCell><b>Punch Out Time</b></TableCell>
-              <TableCell><b>Total Hours</b></TableCell>
-              <TableCell><b>Status</b></TableCell>
-              <TableCell><b>Attendance Request</b></TableCell>
-              <TableCell><b>Actions</b></TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredRows.map((row, index) => (
-              <TableRow key={row.id}>
-                <TableCell>{row.id}</TableCell>
-                <TableCell>{row.userId}</TableCell>
-                <TableCell>{row.date}</TableCell>
-                <TableCell>{row.punchedIn}</TableCell>
-                <TableCell>{row.punchedOut}</TableCell>
-                <TableCell>{row.totalHours}</TableCell>
-                <TableCell>
-                  <Chip
-                    label={row.status}
-                    color={
-                      row.status === "Pending"
-                        ? "warning"
-                        : row.status === "Approved"
-                        ? "success"
-                        : "error"
-                    }
-                    variant="outlined"
-                  />
-                </TableCell>
-                <TableCell>
-                  {row.requestType}{" "}
-                  <DescriptionIcon sx={{ fontSize: 16, ml: 1, color: "#1976d2" }} />
-                </TableCell>
-                <TableCell>
-                  <IconButton size="small" onClick={(e) => handleMenuClick(e, index)}>
-                    <MoreVertIcon />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filteredRows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={9} align="center">
-                  No attendance records found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <Box sx={{ p: 3 }}>
+        {/* SEARCH + ADD (same place) */}
+        <Box display="flex" justifyContent="flex-end" gap={2} mb={2}>
+          <TextField
+            size="small"
+            placeholder="Search Employee..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              endAdornment: (
+                <IconButton size="small">
+                  <SearchIcon />
+                </IconButton>
+              ),
+            }}
+          />
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openAdd}>
+            Add Attendance
+          </Button>
+        </Box>
 
-      {/* Add Attendance Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="sm">
-        <DialogTitle><b>Add Attendance</b></DialogTitle>
-        <DialogContent dividers>
-          <Box display="flex" flexDirection="column" gap={2} mt={1}>
+        {/* TABLE */}
+        <Paper>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>SI</TableCell>
+                  <TableCell>Employee</TableCell>
+                  <TableCell>Punch In</TableCell>
+                  <TableCell>Punch Out</TableCell>
+                  <TableCell>Note</TableCell>
+                  <TableCell align="center">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredRows.length ? (
+                  filteredRows.map((row, i) => (
+                    <TableRow key={row._id}>
+                      <TableCell>{i + 1}</TableCell>
+                      <TableCell>{row.employee}</TableCell>
+                      <TableCell>{row.punchIn}</TableCell>
+                      <TableCell>{row.punchOut}</TableCell>
+                      <TableCell>{row.note}</TableCell>
+                      <TableCell align="center">
+                        <IconButton onClick={() => openView(row)}>
+                          <VisibilityIcon />
+                        </IconButton>
+                        <IconButton onClick={() => openEdit(row)}>
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton onClick={() => handleDelete(row._id)}>
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      No records found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+
+        {/* DIALOG */}
+        <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+          <DialogTitle>
+            {mode === "view" ? "Attendance Details" : "Add Attendance"}
+          </DialogTitle>
+
+          <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <TextField
-              label="User ID"
-              name="userId"
-              value={newData.userId}
-              onChange={handleInputChange}
-              fullWidth
+              label="Employee"
+              value={form.employee}
+              onChange={(e) => setForm({ ...form, employee: e.target.value })}
+              disabled={mode === "view"}
             />
             <TextField
-              label="Date"
-              name="date"
-              type="date"
-              value={newData.date}
-              onChange={handleInputChange}
-              fullWidth
+              label="Punch In"
+              type="datetime-local"
               InputLabelProps={{ shrink: true }}
+              value={form.punchIn}
+              onChange={(e) => setForm({ ...form, punchIn: e.target.value })}
+              disabled={mode === "view"}
             />
             <TextField
-              label="Punch In Time"
-              name="punchedIn"
+              label="Punch Out"
               type="datetime-local"
-              value={newData.punchedIn}
-              onChange={handleInputChange}
-              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={form.punchOut}
+              onChange={(e) => setForm({ ...form, punchOut: e.target.value })}
+              disabled={mode === "view"}
             />
             <TextField
-              label="Punch Out Time"
-              name="punchedOut"
-              type="datetime-local"
-              value={newData.punchedOut}
-              onChange={handleInputChange}
-              fullWidth
+              label="Note"
+              multiline
+              rows={3}
+              value={form.note}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+              disabled={mode === "view"}
             />
-            <TextField
-              label="Total Hours"
-              name="totalHours"
-              value={newData.totalHours}
-              onChange={handleInputChange}
-              fullWidth
-            />
-            <TextField
-              label="Attendance Request"
-              name="requestType"
-              value={newData.requestType}
-              onChange={handleInputChange}
-              fullWidth
-            />
-            <TextField
-              label="Status"
-              name="status"
-              value={newData.status}
-              onChange={handleInputChange}
-              fullWidth
-              select
-            >
-              <MenuItem value="Pending">Pending</MenuItem>
-              <MenuItem value="Approved">Approved</MenuItem>
-              <MenuItem value="Rejected">Rejected</MenuItem>
-            </TextField>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog} color="error">Cancel</Button>
-          <Button onClick={handleSave} variant="contained" color="primary">Save</Button>
-        </DialogActions>
-      </Dialog>
+          </DialogContent>
 
-      {/* Actions Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-      >
-        <MenuItem onClick={handleApprove}>Approve</MenuItem>
-        <MenuItem onClick={handleReject}>Reject</MenuItem>
-      </Menu>
+          <DialogActions>
+            <Button onClick={() => setOpen(false)}>Cancel</Button>
+            {mode !== "view" && (
+              <Button variant="contained" onClick={handleSave}>
+                Save
+              </Button>
+            )}
+          </DialogActions>
+        </Dialog>
+      </Box>
     </Layout>
   );
 }

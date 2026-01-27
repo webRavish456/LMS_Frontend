@@ -1,41 +1,70 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Grid, TextField, Button } from "@mui/material";
+import React, { useRef } from "react";
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  TextField, Button
+} from "@mui/material";
+import { toast } from "react-toastify";
 
-export default function Edit({ open, onClose, teacher, onUpdate }) {
-  const [updatedTeacher, setUpdatedTeacher] = useState({ ...teacher });
+const EditTeacher = ({ teacher, handleClose, refreshData }) => {
+  const nameRef = useRef();
+  const expRef = useRef();
 
-  useEffect(() => {
-    setUpdatedTeacher({ ...teacher });
-  }, [teacher]);
+  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
-  const handleSave = () => {
-    onUpdate(updatedTeacher);
+  const handleUpdate = async () => {
+    const token = localStorage.getItem("token");
+
+    try {
+      const res = await fetch(`${BASE_URL}/teacher/${teacher._id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          teacherName: nameRef.current.value,
+          experience: expRef.current.value,
+        }),
+      });
+
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+
+      toast.success("Teacher updated successfully");
+      refreshData();
+      handleClose();
+    } catch (err) {
+      toast.error(err.message);
+    }
   };
 
-  if (!teacher) return null;
-
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open onClose={handleClose} fullWidth maxWidth="sm">
       <DialogTitle>Edit Teacher</DialogTitle>
       <DialogContent dividers>
-        <Grid container spacing={2}>
-          {Object.keys(updatedTeacher).map((key) => (
-            <Grid item xs={12} sm={6} key={key}>
-              <TextField
-                label={key.replace(/([A-Z])/g, " $1")}
-                value={updatedTeacher[key]}
-                onChange={(e) => setUpdatedTeacher({ ...updatedTeacher, [key]: e.target.value })}
-                fullWidth
-              />
-            </Grid>
-          ))}
-        </Grid>
+        <TextField
+          label="Teacher Name"
+          defaultValue={teacher.teacherName}
+          inputRef={nameRef}
+          fullWidth
+        />
+        <TextField
+          label="Experience"
+          defaultValue={teacher.experience}
+          inputRef={expRef}
+          fullWidth
+          sx={{ mt: 2 }}
+        />
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={handleSave}>Update</Button>
+        <Button onClick={handleClose}>Cancel</Button>
+        <Button variant="contained" onClick={handleUpdate}>
+          Update
+        </Button>
       </DialogActions>
     </Dialog>
   );
-}
+};
+
+export default EditTeacher;

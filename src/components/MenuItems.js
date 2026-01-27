@@ -53,12 +53,6 @@ const Menuitems = [
       },
     ],
   },
-
-  {
-    icon: "/sidebar/schedule.png",
-    label: "Scheduling",
-    href: "/timetable",
-  },
   {
     icon: "/sidebar/attendence.png",
     label: "Attendance",
@@ -167,54 +161,6 @@ const Menuitems = [
  ],
 
 },
-
-{
-  icon:"/sidebar/chating.png",
-  label:"Chating",
-  href:"/chating",
-
-},
-{
-  icon:"/sidebar/payment.png",
-  label:"Payment",
-  href:"/payment",
-},
-{
-  icon:"/sidebar/content.png",
-  label:"Content-authoring",
-  href:"/content-authoring",
-},
-{
-  icon:"/sidebar/report.png",
-  label:"Report",
-  href:"/report",
-},
-
-
-{
-  icon:"/sidebar/notification.png",
-  label:"Notification",
-  href:"/notification",
-},
-
-
-{
-icon:"/sidebar/classroom.png",
-label:"ClassRoom",
-href:"/classroom",
-},
-
-{
-icon:"sidebar/adaptive.png",
-label:"Adaptive-Learning",
-href:"/adaptive-learning",
-},
-
-{
-icon:"/sidebar/feedback.png",
-label:"Feedback",
-href:"/feedback",
-},
   
   
   {
@@ -230,6 +176,12 @@ href:"/feedback",
   },
 
   {
+    icon:"/sidebar/role.png",
+    label:"Roles & permission",
+    href:"/roles",
+  },
+
+  {
     icon:"/sidebar/profile.png",
     label:"Profile",
     href:"/profile",
@@ -239,6 +191,7 @@ href:"/feedback",
     label:"Setting",
     href:"setting",
   },
+
 
 ];
 

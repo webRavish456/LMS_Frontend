@@ -16,7 +16,6 @@ import {
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 
 /* ================= VALIDATION ================= */
@@ -29,16 +28,17 @@ const schema = yup.object({
     .matches(/^[0-9]{10}$/, "Mobile No must be 10 digits"),
   email: yup.string().email("Invalid email").required("Email is required"),
   address: yup.string().nullable(),
-  salary: yup.number().nullable().typeError("Salary must be a number"),
-  joiningDate: yup.string().nullable(),
+  salary: yup.number().typeError("Salary must be a number"),
+  joiningDate: yup.date().typeError("Invalid date"),
   status: yup.string().required("Status is required"),
 });
 
 const CreateStaff = ({ onSuccess, handleClose }) => {
   const [loading, setLoading] = useState(false);
-
-  const token = localStorage.getItem('token')
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
+
+  // ✅ FINAL FIX — token localStorage se
+  const token = localStorage.getItem("token");
 
   const {
     register,
@@ -59,49 +59,49 @@ const CreateStaff = ({ onSuccess, handleClose }) => {
       status: "Active",
     },
   });
-const onSubmit = async (data) => {
-  setLoading(true);
 
-  // ✅ SAHI PAYLOAD: Staff model ke mutabiq
-  const payload = {
-    staffName: data.staffName,
-    designation: data.designation,
-    mobileNO: Number(data.mobileNO), // Backend Number expect kar raha hai
-    email: data.email,
-    address: data.address || "N/A", // Required field ko fallback dein
-    salary: Number(data.salary) || 0, // Required field ko fallback dein
-    joiningDate: data.joiningDate || new Date().toISOString(), // Required field
-    status: data.status || "Active",
+  /* ================= SUBMIT ================= */
+  const onSubmit = async (data) => {
+    setLoading(true);
+
+    const payload = {
+      staffName: data.staffName,
+      designation: data.designation,
+      mobileNO: Number(data.mobileNO),
+      email: data.email,
+      address: data.address || "N/A",
+      salary: data.salary ? Number(data.salary) : 0,
+      joiningDate: data.joiningDate || new Date(),
+      status: data.status,
+    };
+
+    try {
+      const response = await fetch(`${Base_url}/staff`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, // ✅ WORKING
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const res = await response.json();
+
+      if (response.ok) {
+        toast.success("Staff added successfully!");
+        onSuccess?.(res.data); // table auto refresh
+        reset();
+        handleClose();
+      } else {
+        toast.error(res.message || "Failed to add staff");
+      }
+    } catch (error) {
+      toast.error("Server error");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  try {
-    const response = await fetch(`${Base_url}/staff`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const res = await response.json();
-
-    if (response.ok) {
-      toast.success("Staff added successfully!");
-      reset();
-      onSuccess?.(); // page.js refresh ke liye
-      handleClose();
-    } else {
-      // Backend error message dikhayega
-      toast.error(res.message || "Failed to add staff");
-    }
-  } catch (error) {
-    toast.error("Server error");
-  } finally {
-    setLoading(false);
-  }
-
-};
   return (
     <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ p: 2 }}>
       <Grid container spacing={2}>
@@ -146,17 +146,13 @@ const onSubmit = async (data) => {
         </Grid>
 
         <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Address (Optional)"
-            {...register("address")}
-          />
+          <TextField fullWidth label="Address" {...register("address")} />
         </Grid>
 
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            label="Salary (Optional)"
+            label="Salary"
             type="number"
             {...register("salary")}
           />
@@ -165,7 +161,7 @@ const onSubmit = async (data) => {
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            label="Joining Date (Optional)"
+            label="Joining Date"
             type="date"
             InputLabelProps={{ shrink: true }}
             {...register("joiningDate")}

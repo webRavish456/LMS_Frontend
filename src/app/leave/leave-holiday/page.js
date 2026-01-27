@@ -1,193 +1,231 @@
-'use client';
+"use client";
 
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import {
-  Paper, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Box, IconButton,
-  Button, Menu, MenuItem, Typography, Stack, Tabs, Tab, Divider
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Box,
+  IconButton,
+  Button,
+  Menu,
+  MenuItem,
+  Typography,
+  Stack,
+  Tabs,
+  Tab,
+  Divider,
 } from "@mui/material";
 
 import Layout from "@/components/Layout";
 import Search from "@/components/Search/Search";
 import CommonDialog from "@/components/CommonDialog/CommonDialog";
-import Create from "@/components/Leave/Leave-status/Create/Create"; 
+import Create from "@/components/Leave/Leave-Holiday/Create/Create";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-const HolidayPage = () => {
+export default function HolidayPage() {
+  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
+
   const [rows, setRows] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  const [tabValue, setTabValue] = useState(0); 
+  const [tabValue, setTabValue] = useState(0);
 
   const [openCreate, setOpenCreate] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
 
-  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
-
-  // --- 1. Fetch Holiday Data ---
+  /* ================= FETCH DATA ================= */
   const fetchHolidayData = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      // कंट्रोलर getAllHolidays को कॉल करेगा
-      const response = await fetch(`${Base_url}/holiday`, {
-        headers: { Authorization: `Bearer ${token}` }
+
+      const res = await fetch(`${Base_url}/holiday`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      const res = await response.json();
-      if (res.status === "success") {
-        setRows(res.data || []);
+
+      const data = await res.json();
+      if (data.status === "success") {
+        setRows(data.data || []);
       }
-    } catch (error) {
+    } catch (err) {
       toast.error("Failed to load holidays");
     } finally {
       setLoading(false);
     }
   }, [Base_url]);
 
-  useEffect(() => { fetchHolidayData(); }, [fetchHolidayData]);
+  useEffect(() => {
+    fetchHolidayData();
+  }, [fetchHolidayData]);
 
-  // --- 2. Filter Logic ---
+  /* ================= FILTER ================= */
   const filteredRows = useMemo(() => {
     return rows.filter((row) =>
       row.name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [searchTerm, rows]);
+  }, [rows, searchTerm]);
 
-  const handleMenuOpen = (event, row) => {
-    setAnchorEl(event.currentTarget);
+  /* ================= MENU ================= */
+  const handleMenuOpen = (e, row) => {
+    setAnchorEl(e.currentTarget);
     setSelectedRow(row);
   };
 
-  const handleMenuClose = () => setAnchorEl(null);
-
-  // --- 3. Delete Logic ---
-  const handleDelete = async () => {
-    if (!selectedRow) return;
-    if (window.confirm("Are you sure you want to delete this holiday?")) {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${Base_url}/holiday/${selectedRow._id}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const res = await response.json();
-        if (res.status === "success") {
-          toast.success("Holiday deleted successfully!");
-          fetchHolidayData();
-        }
-      } catch (error) {
-        toast.error("Delete failed");
-      }
-      handleMenuClose();
-    }
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedRow(null);
   };
 
-  const columns = [
-    { id: "id", label: "SI.NO" },
-    { id: "name", label: "HOLIDAY NAME" },
-    { id: "date", label: "DATE" },
-    { id: "actions", label: "ACTION", align: "right" },
-  ];
+  /* ================= DELETE ================= */
+  const handleDelete = async () => {
+    if (!selectedRow) return;
+
+    if (!confirm("Are you sure you want to delete this holiday?")) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${Base_url}/holiday/${selectedRow._id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      if (data.status === "success") {
+        toast.success("Holiday deleted successfully");
+        fetchHolidayData();
+      }
+    } catch (err) {
+      toast.error("Delete failed");
+    }
+    handleMenuClose();
+  };
 
   return (
     <Layout>
       <ToastContainer position="top-right" autoClose={3000} />
+
       <Box sx={{ p: 4, bgcolor: "#f8f9fa", minHeight: "100vh" }}>
-        
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 3, color: "#072eb0", textTransform: 'uppercase' }}>
-          Holiday Management
+        <Typography
+          variant="h5"
+          sx={{ fontWeight: 700, mb: 3, color: "#072eb0" }}
+        >
+          HOLIDAY MANAGEMENT
         </Typography>
 
-        {/* Tabs for Categories */}
-        <Box sx={{ mb: 4 }}>
-          <Tabs 
-            value={tabValue} 
-            onChange={(e, v) => setTabValue(v)}
-            TabIndicatorProps={{ style: { display: 'none' } }}
+        {/* Tabs */}
+        <Tabs
+          value={tabValue}
+          onChange={(e, v) => setTabValue(v)}
+          sx={{ mb: 3 }}
+        >
+          <Tab label="Weekly Holiday" />
+          <Tab label="Public Holiday" />
+        </Tabs>
+
+        <Paper sx={{ borderRadius: 2 }}>
+          {/* Header */}
+          <Box
             sx={{
-              '& .MuiTab-root': {
-                textTransform: 'none', borderRadius: '25px', minHeight: '40px',
-                marginRight: '15px', bgcolor: '#fff', color: '#666', px: 3, border: '1px solid #f0f0f0'
-              },
-              '& .Mui-selected': { bgcolor: '#007bff !important', color: '#fff !important' }
+              p: 3,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
             }}
           >
-            <Tab label="Weekly Holiday" />
-            <Tab label="Public Holiday" />
-          </Tabs>
-        </Box>
-
-        <Paper sx={{ borderRadius: "12px", border: "1px solid #ebebeb", boxShadow: "none" }}>
-          <Box sx={{ p: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: "16px" }}>
-              {tabValue === 0 ? "Weekly Holiday" : "Public Holiday"}
+            <Typography variant="h6" fontWeight={700}>
+              Holiday List
             </Typography>
-            
+
             <Stack direction="row" spacing={2} alignItems="center">
-              <Search onSearch={(term) => setSearchTerm(term)} hideButton />
-              <Button 
-                variant="contained" 
+              <Search onSearch={(t) => setSearchTerm(t)} hideButton />
+
+              {/* ✅ PLUS ICON REMOVED */}
+              <Button
+                variant="contained"
                 onClick={() => setOpenCreate(true)}
-                sx={{ bgcolor: "#007bff", textTransform: "none", borderRadius: "6px", px: 3 }}
+                sx={{ textTransform: "none", px: 3 }}
               >
-                + Add Holiday
+                Add Holiday
               </Button>
             </Stack>
           </Box>
 
+          {/* Table */}
           <TableContainer>
             <Table>
               <TableHead sx={{ bgcolor: "#f1f4f9" }}>
                 <TableRow>
-                  {columns.map((col) => (
-                    <TableCell key={col.id} align={col.align} sx={{ fontWeight: 700, color: "#555", fontSize: "12px" }}>
-                      {col.label}
-                    </TableCell>
-                  ))}
+                  <TableCell><b>SI.NO</b></TableCell>
+                  <TableCell><b>HOLIDAY NAME</b></TableCell>
+                  <TableCell><b>DATE</b></TableCell>
+                  <TableCell align="right"><b>ACTION</b></TableCell>
                 </TableRow>
               </TableHead>
+
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={4} align="center">Loading...</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">
+                      Loading...
+                    </TableCell>
+                  </TableRow>
                 ) : filteredRows.length > 0 ? (
-                  filteredRows.map((row, index) => (
-                    <TableRow hover key={row._id}>
-                      <TableCell>{index + 1}</TableCell>
-                      <TableCell sx={{ fontWeight: 500 }}>{row.name}</TableCell>
-                      <TableCell>{new Date(row.date).toLocaleDateString("en-IN")}</TableCell>
+                  filteredRows.map((row, i) => (
+                    <TableRow key={row._id}>
+                      <TableCell>{i + 1}</TableCell>
+                      <TableCell>{row.name}</TableCell>
+                      <TableCell>
+                        {new Date(row.date).toLocaleDateString("en-IN")}
+                      </TableCell>
                       <TableCell align="right">
-                        <IconButton onClick={(e) => handleMenuOpen(e, row)}><MoreVertIcon /></IconButton>
+                        <IconButton onClick={(e) => handleMenuOpen(e, row)}>
+                          <MoreVertIcon />
+                        </IconButton>
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow><TableCell colSpan={4} align="center">No holidays found</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">
+                      No holidays found
+                    </TableCell>
+                  </TableRow>
                 )}
               </TableBody>
             </Table>
           </TableContainer>
         </Paper>
 
-        {/* Action Menu */}
+        {/* Menu */}
         <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
           <MenuItem onClick={handleMenuClose}>Edit</MenuItem>
           <Divider />
-          <MenuItem onClick={handleDelete} sx={{ color: 'error.main', fontWeight: 600 }}>Delete</MenuItem>
+          <MenuItem onClick={handleDelete} sx={{ color: "red" }}>
+            Delete
+          </MenuItem>
         </Menu>
 
-        {/* Dialog Component */}
+        {/* Dialog */}
         <CommonDialog
           open={openCreate}
           onClose={() => setOpenCreate(false)}
           dialogTitle="Add New Holiday"
-          dialogContent={<Create onClose={() => setOpenCreate(false)} onRefresh={fetchHolidayData} />}
+          dialogContent={
+            <Create
+              onClose={() => setOpenCreate(false)}
+              onRefresh={fetchHolidayData}
+            />
+          }
         />
       </Box>
     </Layout>
   );
-};
-
-export default HolidayPage;
+}

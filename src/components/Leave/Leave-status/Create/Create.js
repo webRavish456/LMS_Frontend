@@ -1,81 +1,138 @@
 "use client";
 
-import { Button, TextField, Box, MenuItem, Grid, Typography, FormControl, InputLabel, Select } from "@mui/material";
 import React, { useState } from "react";
+import {
+  Box,
+  Button,
+  TextField,
+  MenuItem,
+  Grid,
+  Typography,
+  FormControl,
+  InputLabel,
+  Select,
+} from "@mui/material";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { toast } from "react-toastify";
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
-export default function Create({ onClose, onRefresh }) {
+const Create = ({ onClose, onRefresh }) => {
   const [formData, setFormData] = useState({
     profile: "",
     leaveType: "",
-    startDate: new Date().toISOString().split('T')[0],
+    startDate: new Date().toISOString().split("T")[0],
     reason: "",
-    attachments: null // Isme actual file object jayega
+    attachments: null,
   });
 
-  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
+  const [loading, setLoading] = useState(false);
 
+  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+
+  /* ================= FILE CHANGE ================= */
   const handleFileChange = (e) => {
-    setFormData({ ...formData, attachments: e.target.files[0] });
-  };
+    const file = e.target.files[0];
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const token = localStorage.getItem("token");
+    if (!file) return;
 
-    if (!formData.attachments) {
-      toast.error("Please upload an attachment. It is required by the server.");
+    // ✅ File size limit (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("File size should be less than 2MB");
       return;
     }
 
-    // ✅ Multer ke liye FormData zaroori hai
+    setFormData({ ...formData, attachments: file });
+  };
+
+  /* ================= SUBMIT ================= */
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // ✅ Frontend validation
+    if (!formData.profile.trim()) {
+      return toast.error("Employee name is required");
+    }
+    if (!formData.leaveType) {
+      return toast.error("Leave type is required");
+    }
+    if (!formData.startDate) {
+      return toast.error("Start date is required");
+    }
+    if (!formData.reason.trim()) {
+      return toast.error("Reason is required");
+    }
+    if (!formData.attachments) {
+      return toast.error("Attachment is required");
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      return toast.error("Unauthorized, please login again");
+    }
+
     const data = new FormData();
-    data.append("profile", formData.profile);
-    data.append("startDate", formData.startDate);
+    data.append("profile", formData.profile.trim());
+    data.append("date", formData.startDate);
     data.append("leaveType", formData.leaveType);
-    data.append("activity", "Pending"); // Default status
-    data.append("reason", formData.reason);
-    data.append("attachMents", formData.attachments); // 👈 Field name must match controller's upload.single("attachMents")
+    data.append("reason", formData.reason.trim());
+    data.append("leaveDuration", "1 Day");
+    data.append("activity", "Pending");
+    data.append("attachments", formData.attachments);
 
     try {
-      const response = await fetch(`${Base_url}/leave-request`, {
+      setLoading(true);
+
+      const res = await fetch(`${BASE_URL}/leave-status`, {
         method: "POST",
-        headers: { 
-          // ❌ Content-Type manually set nahi karna hai FormData ke sath
-          "Authorization": `Bearer ${token}` 
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-        body: data, 
+        body: data,
       });
 
-      const res = await response.json();
-      
-      if (res.success) {
-        toast.success("Leave Request Saved Successfully!");
-        if (onRefresh) onRefresh(); 
-        onClose(); 
+      const result = await res.json();
+
+      if (result.success) {
+        toast.success("Leave Applied Successfully");
+        onRefresh && onRefresh();
+        onClose && onClose();
       } else {
-        toast.error(res.message || "Fill all required fields");
+        toast.error(result.message || "Something went wrong");
       }
     } catch (error) {
-      console.error("Submission Error:", error);
-      toast.error("Server connection failed");
+      console.error("Submit Error:", error);
+      toast.error("Server error, please try again");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
       <Grid container spacing={2}>
+        {/* Employee Name */}
         <Grid item xs={12}>
-          <TextField fullWidth label="Employee Name (Profile)" required 
-            onChange={(e) => setFormData({...formData, profile: e.target.value})} />
+          <TextField
+            fullWidth
+            label="Employee Name"
+            required
+            value={formData.profile}
+            onChange={(e) =>
+              setFormData({ ...formData, profile: e.target.value })
+            }
+          />
         </Grid>
-        
+
+        {/* Leave Type */}
         <Grid item xs={12}>
           <FormControl fullWidth required>
             <InputLabel>Leave Type</InputLabel>
-            <Select value={formData.leaveType} label="Leave Type"
-              onChange={(e) => setFormData({...formData, leaveType: e.target.value})}>
+            <Select
+              value={formData.leaveType}
+              label="Leave Type"
+              onChange={(e) =>
+                setFormData({ ...formData, leaveType: e.target.value })
+              }
+            >
               <MenuItem value="Paid Casual">Paid Casual</MenuItem>
               <MenuItem value="Paid Sick">Paid Sick</MenuItem>
               <MenuItem value="Unpaid Casual">Unpaid Casual</MenuItem>
@@ -84,47 +141,89 @@ export default function Create({ onClose, onRefresh }) {
           </FormControl>
         </Grid>
 
+        {/* Start Date */}
         <Grid item xs={12}>
-          <TextField fullWidth type="date" label="Start Date" InputLabelProps={{ shrink: true }}
-            value={formData.startDate} onChange={(e) => setFormData({...formData, startDate: e.target.value})} required />
+          <TextField
+            fullWidth
+            type="date"
+            label="Start Date"
+            InputLabelProps={{ shrink: true }}
+            value={formData.startDate}
+            onChange={(e) =>
+              setFormData({ ...formData, startDate: e.target.value })
+            }
+            required
+          />
         </Grid>
 
+        {/* Reason */}
         <Grid item xs={12}>
-          <TextField fullWidth multiline rows={2} label="Reason Note" required
-            onChange={(e) => setFormData({...formData, reason: e.target.value})} />
+          <TextField
+            fullWidth
+            multiline
+            rows={2}
+            label="Reason"
+            required
+            value={formData.reason}
+            onChange={(e) =>
+              setFormData({ ...formData, reason: e.target.value })
+            }
+          />
         </Grid>
 
-        {/* --- ATTACHMENTS (REQUIRED) --- */}
+        {/* Attachment */}
         <Grid item xs={12}>
-          <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>Upload Attachment (Required)</Typography>
+          <Typography variant="body2" fontWeight={500} mb={1}>
+            Upload Attachment (PDF / Image, max 2MB)
+          </Typography>
+
           <Box
+            component="label"
             sx={{
               border: "2px dashed #ccc",
               borderRadius: 2,
               p: 2,
               textAlign: "center",
-              bgcolor: "#f9f9f9",
               cursor: "pointer",
-              "&:hover": { borderColor: "#1976d2" }
+              "&:hover": { borderColor: "#1976d2" },
             }}
-            component="label"
           >
-            <input type="file" hidden accept=".jpeg,.jpg,.png,.pdf" onChange={handleFileChange} required />
-            <CloudUploadIcon sx={{ color: "#777", fontSize: 30 }} />
-            <Typography variant="body2">Click to Browse</Typography>
+            <input
+              type="file"
+              hidden
+              accept=".jpg,.jpeg,.png,.pdf"
+              onChange={handleFileChange}
+            />
+
+            <CloudUploadIcon sx={{ fontSize: 30, color: "#777" }} />
+            <Typography variant="body2">Click to upload</Typography>
+
             {formData.attachments && (
-              <Typography variant="caption" display="block" sx={{ mt: 1, color: "green", fontWeight: 700 }}>
-                Selected: {formData.attachments.name}
+              <Typography
+                variant="caption"
+                color="green"
+                fontWeight={600}
+                display="block"
+                mt={1}
+              >
+                {formData.attachments.name}
               </Typography>
             )}
           </Box>
         </Grid>
 
-        <Grid item xs={12} sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 1 }}>
-          <Button onClick={onClose} variant="outlined">Cancel</Button>
-          <Button type="submit" variant="contained" color="primary">Save</Button>
+        {/* Buttons */}
+        <Grid item xs={12} sx={{ textAlign: "right" }}>
+          <Button onClick={onClose} sx={{ mr: 2 }} disabled={loading}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="contained" disabled={loading}>
+            {loading ? "Saving..." : "Save"}
+          </Button>
         </Grid>
       </Grid>
     </Box>
   );
-}
+};
+
+export default Create;

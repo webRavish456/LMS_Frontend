@@ -1,108 +1,127 @@
-'use client'
-import React, { useState } from "react";
-import { 
-  Dialog, DialogTitle, DialogContent, 
-  Box, TextField, Table, TableBody, TableCell, 
-  TableContainer, TableHead, TableRow, Checkbox, 
-  Paper, Button, IconButton, Typography, Stack 
-} from "@mui/material";
-import CloseIcon from '@mui/icons-material/Close';
+"use client";
 
-const CreateRoleModal = ({ open, handleClose, onSave }) => {
+import React, { useState } from "react";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  TextField,
+  Button,
+  Stack,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Checkbox,
+  Box,
+} from "@mui/material";
+
+const modules = [
+  "Branch",
+  "Employee",
+  "Freelancer",
+  "Roles",
+  "PunchIn/PunchOut",
+  "DailyLog",
+  "AttendanceRequest",
+  "AttendanceDetails",
+];
+
+const CreateRoleModal = ({ open, handleClose, onSuccess }) => {
   const [roleName, setRoleName] = useState("");
-  const modules = [
-    "Branch", "InHouseRecruitment", "OutsideRecruitment", "Employee", 
-    "Freelancer", "Roles", "PunchIn/PunchOut", "DailyLog", 
-    "AttendanceRequest", "AttendanceDetails"
-  ];
-  
+  const [loading, setLoading] = useState(false);
+
   const [permissions, setPermissions] = useState(
-    modules.map(mod => ({ module: mod, create: false, read: false, update: false, delete: false }))
+    modules.map((m) => ({
+      module: m,
+      create: false,
+      read: false,
+      update: false,
+      delete: false,
+    }))
   );
 
-  const handleCheckboxChange = (index, field) => {
+  const togglePermission = (index, field) => {
     const updated = [...permissions];
     updated[index][field] = !updated[index][field];
     setPermissions(updated);
   };
 
-  const handleSubmit = () => {
-    onSave({ roleName, permissions });
-    setRoleName(""); 
-    handleClose();
+  /* ================= SAVE ROLE ================= */
+  const handleSubmit = async () => {
+    if (!roleName.trim()) return;
+
+    try {
+      setLoading(true);
+
+      const token = localStorage.getItem("token");
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/role`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            roleName: roleName.trim(),
+            permissions,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (data.status === "success") {
+        // 🔥 VERY IMPORTANT (Staff page pattern)
+        onSuccess(data.data);   // parent will show toast + update table
+        setRoleName("");
+        handleClose();
+      }
+    } catch (err) {
+      console.error("Create role error", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md">
-      {/* Top Header with Input and Buttons */}
-      <DialogTitle sx={{ p: 2, bgcolor: "#fff" }}>
-        <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
-          <TextField 
-            placeholder="Enter role name" 
-            variant="outlined" 
-            size="small" 
-            value={roleName} 
-            onChange={(e) => setRoleName(e.target.value)} 
-            sx={{ width: '350px' }}
-          />
-          
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Button 
-              onClick={handleClose} 
-              variant="outlined"
-              sx={{ 
-                textTransform: 'none', 
-                borderRadius: 1.5,
-                color: "#0084ff",
-                borderColor: "#0084ff",
-                px: 3
-              }}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSubmit} 
-              variant="contained" 
-              sx={{ 
-                textTransform: 'none', 
-                borderRadius: 1.5,
-                bgcolor: "#0084ff",
-                px: 3,
-                '&:hover': { bgcolor: "#0073e6" }
-              }}
-            >
-              Save
-            </Button>
-            <IconButton onClick={handleClose} size="small" sx={{ ml: 1 }}>
-              <CloseIcon />
-            </IconButton>
-          </Stack>
-        </Stack>
-      </DialogTitle>
-      
-      <DialogContent dividers sx={{ p: 0 }}>
-        <TableContainer component={Box}>
-          <Table size="small" stickyHeader>
+      <DialogTitle>Create Role</DialogTitle>
+
+      <DialogContent dividers>
+        <TextField
+          fullWidth
+          label="Role Name"
+          value={roleName}
+          onChange={(e) => setRoleName(e.target.value)}
+          sx={{ mb: 2 }}
+        />
+
+        <Box sx={{ maxHeight: 300, overflow: "auto" }}>
+          <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 'bold', bgcolor: "#f8fafc", color: "#475569", py: 2 }}>PERMISSIONS</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: "#f8fafc", color: "#475569" }}>CREATE</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: "#f8fafc", color: "#475569" }}>READ</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: "#f8fafc", color: "#475569" }}>UPDATE</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: "#f8fafc", color: "#475569" }}>DELETE</TableCell>
+                <TableCell>MODULE</TableCell>
+                <TableCell align="center">C</TableCell>
+                <TableCell align="center">R</TableCell>
+                <TableCell align="center">U</TableCell>
+                <TableCell align="center">D</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {permissions.map((row, index) => (
-                <TableRow key={index} sx={{ '&:nth-of-type(even)': { bgcolor: "#f8fafc" } }}>
-                  <TableCell sx={{ py: 1.5, color: "#1e293b" }}>{row.module}</TableCell>
-                  {['create', 'read', 'update', 'delete'].map(field => (
+              {permissions.map((p, index) => (
+                <TableRow key={index}>
+                  <TableCell>{p.module}</TableCell>
+                  {["create", "read", "update", "delete"].map((field) => (
                     <TableCell align="center" key={field}>
-                      <Checkbox 
-                        checked={row[field]} 
-                        onChange={() => handleCheckboxChange(index, field)}
-                        size="small"
-                        sx={{ color: "#cbd5e1", '&.Mui-checked': { color: "#0084ff" } }}
+                      <Checkbox
+                        checked={p[field]}
+                        onChange={() =>
+                          togglePermission(index, field)
+                        }
                       />
                     </TableCell>
                   ))}
@@ -110,7 +129,25 @@ const CreateRoleModal = ({ open, handleClose, onSave }) => {
               ))}
             </TableBody>
           </Table>
-        </TableContainer>
+        </Box>
+
+        <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
+          <Button
+            variant="outlined"
+            onClick={handleClose}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? "Saving..." : "Save"}
+          </Button>
+        </Stack>
       </DialogContent>
     </Dialog>
   );

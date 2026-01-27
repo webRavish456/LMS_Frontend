@@ -28,7 +28,7 @@ const CreateBranch = ({ onClose, onCreate }) => {
       const response = await fetch(`${Base_url}/branch`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`, // पक्का करें कि Bearer और space सही है
+          "Authorization": `Bearer ${token}`, 
           "Content-Type": "application/json"
         },
         body: JSON.stringify(formData),

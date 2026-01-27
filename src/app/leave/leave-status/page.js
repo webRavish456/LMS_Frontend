@@ -1,141 +1,248 @@
 "use client";
 
-import React, { useState } from "react";
-import { 
-  Box, Typography, Button, Paper, Table, TableBody, 
-  TableCell, TableContainer, TableHead, TableRow, Chip, IconButton 
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Typography,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  IconButton,
+  CircularProgress,
 } from "@mui/material";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 import Layout from "@/components/Layout";
 import Search from "@/components/Search/Search";
 import CommonDialog from "@/components/CommonDialog/CommonDialog";
+import Create from "@/components/Leave/Leave-status/Create/Create";
 
-// ✅ Import path as per your directory
-import Create from "@/components/Leave/Leave-status/Create/Create"; 
-
-import { ToastContainer } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-const LeaveStatus = () => {
-  const [isApplyOpen, setIsApplyOpen] = useState(false);
+const LeaveStatusPage = () => {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState("create"); // create | edit | view
+  const [selected, setSelected] = useState(null);
+
+  const [leaveData, setLeaveData] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const handleOpen = () => setIsApplyOpen(true);
-  const handleClose = () => setIsApplyOpen(false);
+  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
-  // Sample Data for Table
-  const [rows] = useState([
-    { id: 1, name: "Arjun", date: "Jan 10, 2026 10:30 AM", duration: "2 Days", leaveType: "Sick", status: "Approved" },
-    { id: 2, name: "Ravi", date: "Jan 12, 2026 09:00 AM", duration: "1 Day", leaveType: "Casual", status: "Pending" },
-  ]);
+  /* ================= FETCH ================= */
+  const fetchLeaveData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
 
-  const columns = [
-    { id: "name", label: "PROFILE" },
-    { id: "date", label: "DATE & TIME" },
-    { id: "duration", label: "LEAVE DURATION" },
-    { id: "leaveType", label: "LEAVE TYPE" },
-    { id: "attachments", label: "ATTACHMENTS" },
-    { id: "status", label: "STATUS" },
-    { id: "actions", label: "ACTIONS" },
-  ];
+      const res = await fetch(`${BASE_URL}/leave-status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const result = await res.json();
+      if (result.success) setLeaveData(result.data);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to fetch data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaveData();
+  }, []);
+
+  /* ================= VIEW ================= */
+  const handleView = (item) => {
+    setSelected(item);
+    setMode("view");
+    setOpen(true);
+  };
+
+  /* ================= EDIT ================= */
+  const handleEdit = (item) => {
+    setSelected(item);
+    setMode("edit");
+    setOpen(true);
+  };
+
+  /* ================= DELETE ================= */
+  const handleDelete = async (id) => {
+    if (!confirm("Are you sure you want to delete this record?")) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${BASE_URL}/leave-status/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await res.json();
+
+      if (result.success) {
+        toast.success("Deleted successfully");
+        fetchLeaveData();
+      } else {
+        toast.error(result.message || "Delete failed");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Server error");
+    }
+  };
+
+  /* ================= SEARCH ================= */
+  const filteredData = leaveData.filter((i) =>
+    i.profile?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <Layout>
-      <Box sx={{ p: 3, bgcolor: "#f8f9fa", minHeight: "100vh" }}>
+      <Box sx={{ p: 3, bgcolor: "#f5f7fb", minHeight: "100vh" }}>
         <ToastContainer position="top-right" autoClose={3000} />
 
-        {/* --- Header Section --- */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600, color: "#1a2035" }}>
+        {/* HEADER */}
+        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
+          <Typography variant="h5" fontWeight={600}>
             Leave Status
           </Typography>
-          <Search 
-          buttonText="Apply Leave" 
-          onAddClick={handleOpen} 
-          onSearch={(term) => setSearchTerm(term)}
-        />
+
+          <Search
+            buttonText="Apply Leave"
+            onAddClick={() => {
+              setSelected(null);
+              setMode("create");
+              setOpen(true);
+            }}
+            onSearch={(v) => setSearchTerm(v)}
+          />
         </Box>
 
-        {/* --- Filter & Search Section --- */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <Button variant="outlined" sx={{ borderRadius: "20px", textTransform: "none", color: "#888", borderColor: "#ddd", bgcolor: "white" }}>Department</Button>
-            <Button variant="outlined" sx={{ borderRadius: "20px", textTransform: "none", color: "#888", borderColor: "#ddd", bgcolor: "white" }}>Users</Button>
-          </Box>
-          <Box sx={{ width: "300px" }}>
-            {/* <Search onSearch={(term) => setSearchTerm(term)} /> */}
-          </Box>
-        </Box>
-        
-
-        {/* --- Date Filter Header (Image Style) --- */}
-        <Paper sx={{ p: 2, mb: 0, borderRadius: "12px 12px 0 0", boxShadow: "none", border: "1px solid #eee", borderBottom: "none" }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography sx={{ color: "#007bff", fontWeight: 500 }}>January 2026</Typography>
-            <Box sx={{ display: "flex", gap: 3 }}>
-              {["Today", "This week", "Last week", "This month", "Last month", "This year"].map((item) => (
-                <Typography key={item} sx={{ cursor: "pointer", fontSize: "13px", color: item === "This month" ? "#007bff" : "#666", fontWeight: item === "This month" ? 600 : 400 }}>
-                  {item}
-                </Typography>
-              ))}
-            </Box>
-          </Box>
-        </Paper>
-
-        {/* --- Table Section --- */}
-        <TableContainer component={Paper} sx={{ borderRadius: "0 0 12px 12px", boxShadow: "none", border: "1px solid #eee" }}>
+        {/* TABLE */}
+        <TableContainer component={Paper}>
           <Table stickyHeader>
             <TableHead>
-              <TableRow sx={{ bgcolor: "#f1f4f9" }}>
-                {columns.map((col) => (
-                  <TableCell key={col.id} sx={{ fontWeight: 700, color: "#555", fontSize: "12px" }}>
-                    {col.label}
-                  </TableCell>
-                ))}
+              <TableRow>
+                <TableCell>#</TableCell>
+                <TableCell>Employee</TableCell>
+                <TableCell>Date</TableCell>
+                <TableCell>Duration</TableCell>
+                <TableCell>Leave Type</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
+
             <TableBody>
-              {rows.map((row) => (
-                <TableRow hover key={row.id}>
-                  <TableCell sx={{ fontWeight: 500 }}>{row.name}</TableCell>
-                  <TableCell>{row.date}</TableCell>
-                  <TableCell>{row.duration}</TableCell>
-                  <TableCell>{row.leaveType}</TableCell>
-                  <TableCell>
-                    <IconButton size="small" color="primary">
-                      <PictureAsPdfIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={row.status} 
-                      size="small" 
-                      sx={{ bgcolor: row.status === "Approved" ? "#e8f5e9" : "#fff3e0", color: row.status === "Approved" ? "green" : "orange", borderRadius: "4px" }} 
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <IconButton size="small">
-                      <MoreVertIcon />
-                    </IconButton>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    <CircularProgress size={24} />
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : filteredData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    No records found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredData.map((item, idx) => (
+                  <TableRow key={item._id} hover>
+                    <TableCell>{idx + 1}</TableCell>
+                    <TableCell>{item.profile}</TableCell>
+                    <TableCell>
+                      {new Date(item.date).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>{item.leaveDuration}</TableCell>
+                    <TableCell>{item.leaveType}</TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={item.activity}
+                        sx={{
+                          bgcolor:
+                            item.activity === "Approved"
+                              ? "#e8f5e9"
+                              : item.activity === "Rejected"
+                              ? "#ffebee"
+                              : "#fff3e0",
+                          color:
+                            item.activity === "Approved"
+                              ? "green"
+                              : item.activity === "Rejected"
+                              ? "red"
+                              : "orange",
+                        }}
+                      />
+                    </TableCell>
+
+                    {/* ACTIONS */}
+                    <TableCell align="center">
+                      {/* VIEW */}
+                      <IconButton
+                        color="primary"
+                        onClick={() => handleView(item)}
+                      >
+                        <VisibilityIcon />
+                      </IconButton>
+
+                      {/* EDIT */}
+                      <IconButton
+                        color="warning"
+                        onClick={() => handleEdit(item)}
+                      >
+                        <EditIcon />
+                      </IconButton>
+
+                      {/* DELETE */}
+                      <IconButton
+                        color="error"
+                        onClick={() => handleDelete(item._id)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
 
-        {/* ✅ CommonDialog with Create Component */}
+        {/* DIALOG: CREATE / EDIT / VIEW */}
         <CommonDialog
-          open={isApplyOpen}
-          onClose={handleClose}
-          dialogTitle="Apply For Leave"
-          dialogContent={<Create onClose={handleClose} />}
+          open={open}
+          onClose={() => setOpen(false)}
+          dialogTitle={
+            mode === "create"
+              ? "Apply Leave"
+              : mode === "edit"
+              ? "Edit Leave"
+              : "View Leave"
+          }
+          dialogContent={
+            <Create
+              mode={mode}           // create | edit | view
+              initialData={selected} // prefill for edit/view
+              onClose={() => setOpen(false)}
+              onRefresh={fetchLeaveData}
+            />
+          }
         />
       </Box>
     </Layout>
   );
 };
 
-export default LeaveStatus;
+export default LeaveStatusPage;

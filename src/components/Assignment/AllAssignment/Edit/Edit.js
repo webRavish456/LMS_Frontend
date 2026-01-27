@@ -1,278 +1,106 @@
-'use client'
-
-import React, { useEffect, useState } from "react";
-import {
-  TextField,
-  Grid,
-  useMediaQuery,
-  Box,
-  Button,
-  CircularProgress,
-  MenuItem,
-} from "@mui/material";
-
-import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
+"use client";
+import React, { useState, useEffect } from "react";
+import { Box, TextField, Button, Grid, MenuItem } from "@mui/material";
 import { toast } from "react-toastify";
-import 'react-toastify/dist/ReactToastify.css';
-import Cookies from 'js-cookie';
 
-const schema = yup.object().shape({
-  assignmentTitle: yup.string().required("assignmentTitle Name is required"),
-  course: yup.string().required("course Location is required"),
-  teacher: yup.string().required("teacher Name is required"),
-  dueDate: yup.string().required("dueDate Location is required"),
-  status: yup.string()
-});
-
-const EditAllAssignment = ({ handleUpdate,  editData,  handleClose }) => {
-
-const isSmScreen = useMediaQuery("(max-width:768px)");
-  const token = Cookies.get('token');
-
-  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
-
-  const [loading, setLoading] = useState(false)
-
-  const [loadingData, setLoadingData] = useState(true)
-
-  const [teacherName, setTeacherName] = useState([]);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm({
-    resolver: yupResolver(schema),
+export default function EditAllAssignment({ editData, handleClose, handleUpdate }) {
+  const [formData, setFormData] = useState({
+    assignmentTitle: "",
+    course: "",
+    teacher: "",
+    dueDate: "",
+    status: ""
   });
 
   useEffect(() => {
-
-
-    const fetchTeacherData = async () => {
-      try {
-        const response = await fetch(`${Base_url}/teacher`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const result = await response.json();
-        if (result.status === "success") {
-          setTeacherName(result.data);
-          setLoadingData(false);
-        }
-      } catch (error) {
-        console.error("Error fetching course data:", error);
-      }
-    };
-
-    if (loadingData) {
-
-      fetchTeacherData();
-    }
-  }, [loadingData]);
-
-  useEffect(() => {
     if (editData) {
-      reset({
+      setFormData({
         assignmentTitle: editData.assignmentTitle || "",
         course: editData.course || "",
         teacher: editData.teacher || "",
-        dueDate: editData.dueDate ? new Date(editData.dueDate).toISOString().split("T")[0] : "",
-        status: editData.status || "",
+        dueDate: editData.dueDate ? editData.dueDate.split('T')[0] : "", 
+        status: editData.status || "Active"
       });
     }
-  }, [editData, reset]);
+  }, [editData]);
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    const token = localStorage.getItem("token");
+    const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
-  const onSubmit = (data) => {
-  
-         setLoading(true)
+    if (!editData?._id) {
+      toast.error("Assignment ID is missing!");
+      return;
+    }
 
-        const formdata = new FormData();
-        formdata.append("assignmentTitle", data.assignmentTitle);
-        formdata.append("course", data.course);
-        formdata.append("teacher", data.teacher);
-        formdata.append("dueDate", data.dueDate);
-        formdata.append("status", data.status);
+    // URL Fixing: 404 se bachne ke liye URL check karein
+    const cleanBaseUrl = Base_url.replace(/\/+$/, ""); 
     
-        const requestOptions = {
-          method: "PATCH",
-          body: formdata,
-          headers: {
-            Authorization: `Bearer ${token}`, 
-           },
-        };
-    
-        fetch(`${Base_url}/allAssignment/${editData._id}`, requestOptions)
-          .then((response) => response.text())
-    
-          .then((result) => {
-    
-            const res = JSON.parse(result)
-    
-            if(res.status==="success")
-            {
-              setLoading(false)
-             
-              toast.success("Assignment Updated Successfully!")
-              handleUpdate(true)
-               handleClose()
-                reset();
-      
-            }
-            else {
-    
-              setLoading(false)
-              toast.error(res.message)
-    
-            }
-          })
-          .catch((error) => console.error(error));
+    /** * IMPORTANT: Agar ye URL fail ho raha hai, toh backend mein check karein 
+     * ki kya route "/allAssignment" hai ya sirf "/assignment".
+     */
+    const finalUrl = `${cleanBaseUrl}/allAssignment/${editData._id}`;
+
+    try {
+      const response = await fetch(finalUrl, {
+        method: "PATCH", // 404 hone par PUT ki jagah PATCH try karein
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` 
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const res = await response.json();
+        if (response.ok) {
+          toast.success("Assignment Updated Successfully!");
+          handleUpdate(); 
+          handleClose();
+        } else {
+          toast.error(res.message || "Server Error");
+        }
+      } else {
+        // Agar response HTML hai (404 Error)
+        console.error("404 Error: Server route not found at " + finalUrl);
+        toast.error("Error 404: Backend route nahi mila. ID ya URL check karein.");
+      }
+    } catch (error) {
+      console.error("Connection error:", error);
+      toast.error("Server connection failed");
+    }
   };
 
   return (
-    <>
-  
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <Grid container columnSpacing={2}>
-          <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}}>
-            <TextField
-              type="text"
-              label={
-                <>
-                  Assignment Title <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-                </>
-              }
-              variant="outlined"
-              {...register("assignmentTitle")}
-              error={!!errors.assignmentTitle}
-              fullWidth
-              margin="normal"
-            />
-            <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-              {errors.assignmentTitle?.message}
-            </div>
-          </Grid>
-
-          <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}}>
-            <TextField
-              type="text"
-              label={
-                <>
-                  Course <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-                </>
-              }
-              variant="outlined"
-              {...register("course")}
-              error={!!errors.course}
-              fullWidth
-              margin="normal"
-            />
-            <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-              {errors.course?.message}
-            </div>
-          </Grid>
-
-          <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}}>
-            <TextField
-              select
-              label={
-                <>
-                  Teacher Name <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-                </>
-              }
-              variant="outlined"
-              defaultValue={editData.teacher}
-              {...register("teacher")}
-              error={!!errors.teacher}
-              fullWidth
-              margin="normal"
-            >
-              {teacherName.map((teacher, index) => (
-                <MenuItem key={index} value={teacher.teacherName}>
-                  {teacher.teacherName}
-                </MenuItem>
-              ))}
-            </TextField>
-            <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-              {errors.teacher?.message}
-            </div>
-          </Grid>
-
-          <Grid size={{xs:12, sm:isSmScreen ? 12 : 6, md:6}}>
-            
-            <TextField
-              type="date"
-              InputLabelProps={{shrink : true}}
-              label={
-                <>
-                  Due Date <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-                </>
-              }
-               variant="outlined"
-              {...register("dueDate")}
-              error={!!errors.dueDate}
-              fullWidth
-              margin="normal"
-            />
-            <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-              {errors.dueDate?.message}
-            </div>
-          </Grid>
-
-          <Grid size={{xs:12, sm:12, md:12}}>
-          <TextField
-                  select
-                  label={
-                      <>
-                        Status <span style={{ color: "rgba(240, 68, 56, 1)" }}>*</span>
-                      </>
-                  }
-                  defaultValue={editData.status}
-                  variant="outlined"
-                  {...register("status")}
-                  error={!!errors.status}
-                  fullWidth
-                  margin="normal"
-                  >
-                  <MenuItem value ="Active">Active</MenuItem>
-                  <MenuItem value ="Inactive">Inactive</MenuItem>
-                
-                  </TextField>
-                  <div style={{ color: "rgba(240, 68, 56, 1)", fontSize: "0.8rem" }}>
-                  {errors.status?.message}
-                  </div>
-
-          </Grid>
-    
-        
+    <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+      <Grid container spacing={2}>
+        <Grid item xs={12}>
+          <TextField fullWidth label="Title" value={formData.assignmentTitle} onChange={(e) => setFormData({...formData, assignmentTitle: e.target.value})} required />
         </Grid>
-
-        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 2 }}>
-          <Button type="submit" onClick={handleClose} className="secondary_button">
-            Cancel
-          </Button>
-          <Button type="submit" className="primary_button">
-
-          {loading ? ( <>
-          <CircularProgress
-           size={18}
-           style={{ marginRight: 8, color: "#fff" }}
-          /> 
-            Updating
-          </> 
-          )   : "Update"}
-            
-         
-          </Button>
-        </Box>
-      </form>
-    </>
+        <Grid item xs={6}>
+          <TextField fullWidth label="Course" value={formData.course} onChange={(e) => setFormData({...formData, course: e.target.value})} required />
+        </Grid>
+        <Grid item xs={6}>
+          <TextField fullWidth label="Teacher" value={formData.teacher} onChange={(e) => setFormData({...formData, teacher: e.target.value})} required />
+        </Grid>
+        <Grid item xs={6}>
+          <TextField fullWidth type="date" label="Due Date" InputLabelProps={{ shrink: true }} value={formData.dueDate} onChange={(e) => setFormData({...formData, dueDate: e.target.value})} required />
+        </Grid>
+        <Grid item xs={6}>
+          <TextField fullWidth select label="Status" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
+            <MenuItem value="Pending">Pending</MenuItem>
+            <MenuItem value="Active">Active</MenuItem>
+            <MenuItem value="Completed">Completed</MenuItem>
+          </TextField>
+        </Grid>
+      </Grid>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3, gap: 2 }}>
+        <Button onClick={handleClose}>CANCEL</Button>
+        <Button type="submit" variant="contained" sx={{ bgcolor: "#ed6c02" }}>UPDATE DATA</Button>
+      </Box>
+    </Box>
   );
-};
-
-export default EditAllAssignment;
+}

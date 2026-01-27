@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Layout from "@/components/Layout";
 import Search from "@/components/Search"; 
 import CommonDialog from "@/components/CommonDialog/CommonDialog";
@@ -22,13 +22,13 @@ import {
   Box,
   IconButton,
   Chip,
+  Typography,
 } from "@mui/material";
 
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-import Cookies from "js-cookie";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -38,9 +38,7 @@ const AllAssignment = () => {
   const [editShow, setEditShow] = useState(false);
   const [deleteShow, setDeleteShow] = useState(false);
 
-  const [viewData, setViewData] = useState(null);
-  const [editData, setEditData] = useState(null);
-  const [deleteId, setDeleteId] = useState(null);
+  const [selectedData, setSelectedData] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [rows, setRows] = useState([]);
@@ -48,74 +46,40 @@ const AllAssignment = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const token = Cookies.get("token");
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
-  /* ================= TABLE COLUMNS ================= */
-  const columns = [
-    { id: "si", label: "SI.No", align: "center" },
-    { id: "assignmentTitle", label: "Assignment Title", align: "center" },
-    { id: "course", label: "Course", align: "center" },
-    { id: "teacher", label: "Teacher", align: "center" },
-    { id: "dueDate", label: "Due Date", align: "center" },
-    { id: "status", label: "Status", align: "center" },
-    { id: "action", label: "Actions", align: "center" },
-  ];
+  /* ================= FETCH ASSIGNMENTS (Database Sync) ================= */
+  const fetchAssignments = useCallback(async () => {
+    const token = localStorage.getItem("token"); // Token hamesha fresh lein refresh issue fix karne ke liye
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
-  /* ================= FETCH ASSIGNMENTS ================= */
-  useEffect(() => {
-    const fetchAssignments = async () => {
-      try {
-        const response = await fetch(`${Base_url}/allAssignment`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+    try {
+      setLoading(true);
+      const response = await fetch(`${Base_url}/allAssignment`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-        const res = await response.json();
+      const res = await response.json();
 
-        if (res.status === "success" && Array.isArray(res.data)) {
-          const formatted = res.data.map((item, index) =>
-            createRow(index + 1, item)
-          );
-          setRows(formatted);
-          setFilteredRows(formatted);
-        }
-      } catch (error) {
-        toast.error("Failed to load assignments");
-      } finally {
-        setLoading(false);
+      if (res.status === "success" && Array.isArray(res.data)) {
+        setRows(res.data);
+        setFilteredRows(res.data);
       }
-    };
+    } catch (error) {
+      toast.error("Failed to load assignments from database");
+    } finally {
+      setLoading(false);
+    }
+  }, [Base_url]);
 
-    if (loading) fetchAssignments();
-  }, [loading, Base_url, token]);
+  useEffect(() => {
+    fetchAssignments();
+  }, [fetchAssignments]);
 
-  /* ================= ROW FORMAT ================= */
-  const createRow = (si, row) => ({
-    si,
-    assignmentTitle: row.assignmentTitle,
-    course: row.course,
-    teacher: row.teacher,
-    dueDate: new Date(row.dueDate).toLocaleDateString("en-IN"),
-    status: <Chip label={row.status} size="small" color="primary" />,
-    action: (
-      <Box sx={{ display: "flex", justifyContent: "center" }}>
-        <IconButton onClick={() => { setViewData(row); setViewShow(true); }}>
-          <VisibilityIcon color="primary" />
-        </IconButton>
-        <IconButton onClick={() => { setEditData(row); setEditShow(true); }}>
-          <EditIcon sx={{ color: "#ed6c02" }} />
-        </IconButton>
-        <IconButton
-          onClick={() => { setDeleteId(row._id); setDeleteShow(true); }}
-          color="error"
-        >
-          <DeleteIcon />
-        </IconButton>
-      </Box>
-    ),
-  });
-
-  /* ================= SEARCH ================= */
+  /* ================= SEARCH LOGIC ================= */
   useEffect(() => {
     const filtered = rows.filter((row) =>
       row.assignmentTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -124,20 +88,23 @@ const AllAssignment = () => {
       row.status?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredRows(filtered);
+    setPage(0);
   }, [searchTerm, rows]);
 
-  /* ================= DELETE ================= */
+  /* ================= DELETE ACTION ================= */
   const handleDelete = async () => {
+    const token = localStorage.getItem("token");
     setIsDeleting(true);
     try {
-      const res = await fetch(`${Base_url}/allAssignment/${deleteId}`, {
+      const res = await fetch(`${Base_url}/allAssignment/${selectedData?._id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       }).then(r => r.json());
 
       if (res.status === "success") {
         toast.success("Assignment deleted successfully");
-        setLoading(true);
+        fetchAssignments(); // Refresh table data
+        handleClose();
       } else {
         toast.error(res.message || "Delete failed");
       }
@@ -145,7 +112,6 @@ const AllAssignment = () => {
       toast.error("Delete request failed");
     } finally {
       setIsDeleting(false);
-      handleClose();
     }
   };
 
@@ -154,6 +120,7 @@ const AllAssignment = () => {
     setViewShow(false);
     setEditShow(false);
     setDeleteShow(false);
+    setSelectedData(null);
   };
 
   /* ================= PAGINATION ================= */
@@ -165,43 +132,74 @@ const AllAssignment = () => {
       <ToastContainer position="top-right" autoClose={3000} />
 
       <Box sx={{ p: 3 }}>
+        <Typography variant="h5" sx={{ fontWeight: 700, mb: 3 }}>Assignment Management</Typography>
+        
         <Search
           onSearch={(term) => setSearchTerm(term)}
           onAddClick={() => setOpenCreate(true)}
           buttonText="Add Assignment"
         />
 
-        <Paper sx={{ mt: 2, borderRadius: "12px" }}>
+        <Paper sx={{ mt: 2, borderRadius: "12px", overflow: "hidden", boxShadow: 3 }}>
           <TableContainer sx={{ maxHeight: 500 }}>
             <Table stickyHeader>
               <TableHead>
-                <TableRow>
-                  {columns.map(col => (
-                    <TableCell key={col.id} align={col.align} sx={{ fontWeight: 700 }}>
-                      {col.label}
-                    </TableCell>
-                  ))}
+                <TableRow sx={{ "& th": { backgroundColor: "#f5f5f5", fontWeight: 700 } }}>
+                  <TableCell align="center">SI.No</TableCell>
+                  <TableCell align="center">Assignment Title</TableCell>
+                  <TableCell align="center">Course</TableCell>
+                  <TableCell align="center">Teacher</TableCell>
+                  <TableCell align="center">Due Date</TableCell>
+                  <TableCell align="center">Status</TableCell>
+                  <TableCell align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
 
               <TableBody>
-                {filteredRows.length ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center">Loading data from database...</TableCell>
+                  </TableRow>
+                ) : filteredRows.length > 0 ? (
                   filteredRows
                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((row, i) => (
-                      <TableRow hover key={i}>
-                        {columns.map(col => (
-                          <TableCell key={col.id} align={col.align}>
-                            {row[col.id]}
-                          </TableCell>
-                        ))}
+                    .map((row, index) => (
+                      <TableRow hover key={row._id || index}>
+                        <TableCell align="center">{index + 1 + page * rowsPerPage}</TableCell>
+                        <TableCell align="center">{row.assignmentTitle || "N/A"}</TableCell>
+                        <TableCell align="center">{row.course || "N/A"}</TableCell>
+                        <TableCell align="center">{row.teacher || "N/A"}</TableCell>
+                        <TableCell align="center">
+                          {row.dueDate ? new Date(row.dueDate).toLocaleDateString("en-IN") : "N/A"}
+                        </TableCell>
+                        <TableCell align="center">
+                          <Chip 
+                            label={row.status || "Pending"} 
+                            size="small" 
+                            color={row.status === "Completed" ? "success" : "primary"} 
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <Box sx={{ display: "flex", justifyContent: "center", gap: 1 }}>
+                            {/* VIEW ICON */}
+                            <IconButton onClick={() => { setSelectedData(row); setViewShow(true); }}>
+                              <VisibilityIcon color="primary" />
+                            </IconButton>
+                            {/* EDIT ICON */}
+                            <IconButton onClick={() => { setSelectedData(row); setEditShow(true); }}>
+                              <EditIcon sx={{ color: "#ed6c02" }} />
+                            </IconButton>
+                            {/* DELETE ICON */}
+                            <IconButton onClick={() => { setSelectedData(row); setDeleteShow(true); }} color="error">
+                              <DeleteIcon />
+                            </IconButton>
+                          </Box>
+                        </TableCell>
                       </TableRow>
                     ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={columns.length} align="center">
-                      No assignments found
-                    </TableCell>
+                    <TableCell colSpan={7} align="center">No assignments found</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -234,14 +232,14 @@ const AllAssignment = () => {
           }
           dialogContent={
             openCreate ? (
-              <CreateAllAssignment handleClose={handleClose} handleCreate={() => setLoading(true)} />
+              <CreateAllAssignment handleClose={handleClose} handleCreate={fetchAssignments} />
             ) : viewShow ? (
-              <ViewAllAssignment viewData={viewData} />
+              <ViewAllAssignment viewData={selectedData} />
             ) : editShow ? (
               <EditAllAssignment
-                editData={editData}
+                editData={selectedData}
                 handleClose={handleClose}
-                handleUpdate={() => setLoading(true)}
+                handleUpdate={fetchAssignments}
               />
             ) : (
               <DeleteAllAssignment

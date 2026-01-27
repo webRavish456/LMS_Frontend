@@ -1,71 +1,231 @@
 "use client";
 
-import { Button, TextField, Box, Grid, Typography } from "@mui/material";
-import React, { useState } from "react";
-import { toast } from "react-toastify";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import {
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Box,
+  IconButton,
+  Button,
+  Menu,
+  MenuItem,
+  Typography,
+  Stack,
+  Tabs,
+  Tab,
+  Divider,
+} from "@mui/material";
 
-export default function Create({ onClose, onRefresh }) {
-  const [formData, setFormData] = useState({ 
-    name: "", // बैकएंड मॉडल 'name' मांग रहा है
-    date: ""  // बैकएंड मॉडल 'date' मांग रहा है
-  });
-  
+import Layout from "@/components/Layout";
+import Search from "@/components/Search/Search";
+import CommonDialog from "@/components/CommonDialog/CommonDialog";
+import Create from "@/components/Leave/Leave-Holiday/Create/Create";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+export default function HolidayPage() {
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const token = localStorage.getItem("token");
+  const [rows, setRows] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [tabValue, setTabValue] = useState(0);
 
-    // ✅ बैकएंड कंट्रोलर 'multipart/form-data' मांग रहा है
-    const data = new FormData();
-    data.append("name", formData.name);
-    data.append("date", formData.date);
+  const [openCreate, setOpenCreate] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedRow, setSelectedRow] = useState(null);
 
+  /* ================= FETCH DATA ================= */
+  const fetchHolidayData = useCallback(async () => {
     try {
-      const response = await fetch(`${Base_url}/holiday`, {
-        method: "POST",
-        headers: { 
-          "Authorization": `Bearer ${token}` 
-          // Note: FormData के साथ Content-Type मैन्युअल सेट न करें
-        },
-        body: data,
+      setLoading(true);
+      const token = localStorage.getItem("token");
+
+      const res = await fetch(`${Base_url}/holiday`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      const res = await response.json();
-      if (res.status === "success") {
-        toast.success("Holiday created successfully!");
-        onRefresh();
-        onClose();
-      } else {
-        toast.error(res.message || "Failed to create holiday");
+      const data = await res.json();
+      if (data.status === "success") {
+        setRows(data.data || []);
       }
-    } catch (error) {
-      toast.error("Server connection error");
+    } catch (err) {
+      toast.error("Failed to load holidays");
+    } finally {
+      setLoading(false);
     }
+  }, [Base_url]);
+
+  useEffect(() => {
+    fetchHolidayData();
+  }, [fetchHolidayData]);
+
+  /* ================= FILTER ================= */
+  const filteredRows = useMemo(() => {
+    return rows.filter((row) =>
+      row.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [rows, searchTerm]);
+
+  /* ================= MENU ================= */
+  const handleMenuOpen = (e, row) => {
+    setAnchorEl(e.currentTarget);
+    setSelectedRow(row);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedRow(null);
+  };
+
+  /* ================= DELETE ================= */
+  const handleDelete = async () => {
+    if (!selectedRow) return;
+
+    if (!confirm("Are you sure you want to delete this holiday?")) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${Base_url}/holiday/${selectedRow._id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      if (data.status === "success") {
+        toast.success("Holiday deleted successfully");
+        fetchHolidayData();
+      }
+    } catch (err) {
+      toast.error("Delete failed");
+    }
+    handleMenuClose();
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, minWidth: "400px" }}>
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>Holiday Name</Typography>
-          <TextField 
-            fullWidth size="small" placeholder="e.g. Independence Day"
-            value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required 
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>Date</Typography>
-          <TextField 
-            fullWidth type="date" size="small" InputLabelProps={{ shrink: true }}
-            value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} required 
-          />
-        </Grid>
-        <Grid item xs={12} sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 2 }}>
-          <Button onClick={onClose} variant="outlined">Cancel</Button>
-          <Button type="submit" variant="contained" sx={{ bgcolor: "#007bff" }}>Save</Button>
-        </Grid>
-      </Grid>
-    </Box>
+    <Layout>
+      <ToastContainer position="top-right" autoClose={3000} />
+
+      <Box sx={{ p: 4, bgcolor: "#f8f9fa", minHeight: "100vh" }}>
+        <Typography
+          variant="h5"
+          sx={{ fontWeight: 700, mb: 3, color: "#072eb0" }}
+        >
+          HOLIDAY MANAGEMENT
+        </Typography>
+
+        {/* Tabs */}
+        <Tabs
+          value={tabValue}
+          onChange={(e, v) => setTabValue(v)}
+          sx={{ mb: 3 }}
+        >
+          <Tab label="Weekly Holiday" />
+          <Tab label="Public Holiday" />
+        </Tabs>
+
+        <Paper sx={{ borderRadius: 2 }}>
+          {/* Header */}
+          <Box
+            sx={{
+              p: 3,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Typography variant="h6" fontWeight={700}>
+              Holiday List
+            </Typography>
+
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Search onSearch={(t) => setSearchTerm(t)} hideButton />
+
+              {/* ✅ PLUS ICON REMOVED */}
+              <Button
+                variant="contained"
+                onClick={() => setOpenCreate(true)}
+                sx={{ textTransform: "none", px: 3 }}
+              >
+                Add Holiday
+              </Button>
+            </Stack>
+          </Box>
+
+          {/* Table */}
+          <TableContainer>
+            <Table>
+              <TableHead sx={{ bgcolor: "#f1f4f9" }}>
+                <TableRow>
+                  <TableCell><b>SI.NO</b></TableCell>
+                  <TableCell><b>HOLIDAY NAME</b></TableCell>
+                  <TableCell><b>DATE</b></TableCell>
+                  <TableCell align="right"><b>ACTION</b></TableCell>
+                </TableRow>
+              </TableHead>
+
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">
+                      Loading...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredRows.length > 0 ? (
+                  filteredRows.map((row, i) => (
+                    <TableRow key={row._id}>
+                      <TableCell>{i + 1}</TableCell>
+                      <TableCell>{row.name}</TableCell>
+                      <TableCell>
+                        {new Date(row.date).toLocaleDateString("en-IN")}
+                      </TableCell>
+                      <TableCell align="right">
+                        <IconButton onClick={(e) => handleMenuOpen(e, row)}>
+                          <MoreVertIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">
+                      No holidays found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+
+        {/* Menu */}
+        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+          <MenuItem onClick={handleMenuClose}>Edit</MenuItem>
+          <Divider />
+          <MenuItem onClick={handleDelete} sx={{ color: "red" }}>
+            Delete
+          </MenuItem>
+        </Menu>
+
+        {/* Dialog */}
+        <CommonDialog
+          open={openCreate}
+          onClose={() => setOpenCreate(false)}
+          dialogTitle="Add New Holiday"
+          dialogContent={
+            <Create
+              onClose={() => setOpenCreate(false)}
+              onRefresh={fetchHolidayData}
+            />
+          }
+        />
+      </Box>
+    </Layout>
   );
 }

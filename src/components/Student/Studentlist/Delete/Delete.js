@@ -1,72 +1,53 @@
 'use client';
 
 import React from "react";
-import { 
-  Box, Typography, Button, CircularProgress 
-} from "@mui/material";
-import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import { Box, Button, Typography } from "@mui/material";
+import { toast } from "react-toastify";
 
-const DeleteAllStudent = ({ handleDelete, isDeleting, handleClose }) => {
+const DeleteStudent = ({ deleteData, handleClose, onSuccess }) => {
+  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
+  const token = localStorage.getItem("token");
+
+  const handleDelete = async () => {
+    try {
+      const res = await fetch(
+        `${Base_url}/studentlist/${deleteData._id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const json = await res.json();
+
+      if (json.status === "success") {
+        toast.success("Student deleted");
+        onSuccess(deleteData._id);
+        handleClose();
+      } else {
+        toast.error(json.message);
+      }
+    } catch {
+      toast.error("Delete failed");
+    }
+  };
+
   return (
-    <Box 
-      sx={{ 
-        p: 2, 
-        textAlign: 'center', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        gap: 2 
-      }}
-    >
-      {/* Warning Icon */}
-      <Box 
-        sx={{ 
-          width: 60, 
-          height: 60, 
-          borderRadius: '50%', 
-          bgcolor: '#fff4e5', 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center' 
-        }}
-      >
-        <WarningAmberIcon sx={{ fontSize: 40, color: '#ffa726' }} />
-      </Box>
+    <Box sx={{ p: 2 }}>
+      <Typography>
+        Are you sure you want to delete <b>{deleteData?.studentName}</b>?
+      </Typography>
 
-      {/* Confirmation Text */}
-      <Box>
-        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
-          Are you sure?
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
-          Do you really want to delete this student record? This process cannot be undone.
-        </Typography>
-      </Box>
-
-      {/* Action Buttons (Point 10) */}
-      <Box sx={{ mt: 3, display: 'flex', gap: 2, width: '100%', justifyContent: 'center' }}>
-        <Button 
-          variant="outlined" 
-          onClick={handleClose} 
-          disabled={isDeleting}
-          sx={{ flex: 1, borderRadius: '8px' }}
-        >
-          Cancel
-        </Button>
-        <Button 
-          variant="contained" 
-          color="error" 
-          onClick={handleDelete} 
-          disabled={isDeleting}
-          startIcon={isDeleting ? <CircularProgress size={20} color="inherit" /> : <DeleteForeverIcon />}
-          sx={{ flex: 1, borderRadius: '8px', bgcolor: '#d32f2f' }}
-        >
-          {isDeleting ? "Deleting..." : "Delete Now"}
+      <Box mt={3} textAlign="right">
+        <Button onClick={handleClose}>Cancel</Button>
+        <Button color="error" variant="contained" onClick={handleDelete}>
+          Delete
         </Button>
       </Box>
     </Box>
   );
 };
 
-export default DeleteAllStudent;
+export default DeleteStudent;

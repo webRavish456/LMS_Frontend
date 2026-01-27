@@ -14,13 +14,11 @@ const Create = ({ handleCreate, handleClose }) => {
     paidAmount: 0,
     totalAmount: 0
   });
-
-  // Base_url should point to your backend (e.g., http://localhost:8000/api)
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000/api";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem("token"); // For Authorization
+    const token = localStorage.getItem("token"); 
 
     try {
       const response = await fetch(`${Base_url}/bill`, {

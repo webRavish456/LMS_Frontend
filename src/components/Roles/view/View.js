@@ -1,36 +1,52 @@
-'use client'
-import React from "react";
-import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip } from "@mui/material";
+"use client";
 
-const ViewRole = ({ roleData }) => {
+import React from "react";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+} from "@mui/material";
+
+const ViewRoleModal = ({ open, role, handleClose }) => {
+  if (!role) return null;
+
   return (
-    <Box>
-      <Typography variant="h6" gutterBottom>Role: {roleData.roleName}</Typography>
-      <TableContainer component={Paper} variant="outlined">
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md">
+      <DialogTitle>View Role</DialogTitle>
+
+      <DialogContent dividers>
+        <h3>{role.roleName}</h3>
+
         <Table size="small">
-          <TableHead sx={{ bgcolor: "#f1f5f9" }}>
+          <TableHead>
             <TableRow>
               <TableCell>Module</TableCell>
-              <TableCell align="center">Access Levels</TableCell>
+              <TableCell align="center">C</TableCell>
+              <TableCell align="center">R</TableCell>
+              <TableCell align="center">U</TableCell>
+              <TableCell align="center">D</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {roleData.permissions.map((perm, i) => (
+            {role.permissions?.map((p, i) => (
               <TableRow key={i}>
-                <TableCell>{perm.module}</TableCell>
-                <TableCell align="center">
-                  {perm.create && <Chip label="Create" size="small" sx={{ mr: 0.5 }} />}
-                  {perm.read && <Chip label="Read" size="small" sx={{ mr: 0.5 }} />}
-                  {perm.update && <Chip label="Update" size="small" sx={{ mr: 0.5 }} />}
-                  {perm.delete && <Chip label="Delete" size="small" color="error" />}
-                </TableCell>
+                <TableCell>{p.module}</TableCell>
+                <TableCell align="center">{p.create ? "✔" : "-"}</TableCell>
+                <TableCell align="center">{p.read ? "✔" : "-"}</TableCell>
+                <TableCell align="center">{p.update ? "✔" : "-"}</TableCell>
+                <TableCell align="center">{p.delete ? "✔" : "-"}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </TableContainer>
-    </Box>
+      </DialogContent>
+    </Dialog>
   );
 };
 
-export default ViewRole;
+export default ViewRoleModal;

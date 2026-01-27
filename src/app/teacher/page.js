@@ -1,175 +1,233 @@
-'use client'
+"use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import Search from "@/components/Search"; 
-import { useRouter } from "next/navigation";
+import Layout from "@/components/Layout";
+import Search from "@/components/Search";
+
+import {
+  Box,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  IconButton,
+  Typography,
+} from "@mui/material";
+
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-import {
-  Paper, Table, TableBody, TableCell, TableContainer,
-  TableHead, TablePagination, TableRow, Box, IconButton, 
-  Typography, Tooltip
-} from "@mui/material";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import Layout from "@/components/Layout";
+import { ToastContainer, toast } from "react-toastify";
 
-
-import CreateTeacher from "@/components/Teacher/Create/Create"; 
-import Edit from "@/components/Teacher/Edit/Edit";
-import View from "@/components/Teacher/View/View";
-import Delete from "@/components/Teacher/Delete/Delete";
+import CreateTeacher from "@/components/Teacher/Create/Create";
+import EditTeacher from "@/components/Teacher/Edit/Edit";
+import ViewTeacher from "@/components/Teacher/View/View";
+import DeleteTeacher from "@/components/Teacher/Delete/Delete";
 
 export default function TeacherPage() {
-  const [rows, setRows] = useState([]);
-  const [filteredRows, setFilteredRows] = useState([]);
+  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+
+  const [teachers, setTeachers] = useState([]);
+  const [filteredTeachers, setFilteredTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isViewOpen, setIsViewOpen] = useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [modalMode, setModalMode] = useState(null); // create | edit | view | delete
   const [selectedTeacher, setSelectedTeacher] = useState(null);
 
-  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
-
-  
-  const fetchFacultyData = useCallback(async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
+  /* ================= FETCH TEACHERS ================= */
+  const fetchTeachers = useCallback(async () => {
     try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
       setLoading(true);
-      const response = await fetch(`${Base_url}/teacher`, {
-        method: "GET",
-        headers: { 
+
+      const res = await fetch(`${BASE_URL}/teacher`, {
+        headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
         },
       });
-      const res = await response.json();
-      if (res.status === "success") {
-        setRows(res.data);
-        setFilteredRows(res.data);
-      }
+
+      const result = await res.json();
+
+      // ✅ SAFE RESPONSE HANDLING
+      const list = Array.isArray(result?.data) ? result.data : [];
+
+      setTeachers(list);
+      setFilteredTeachers(list);
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error(error);
+      toast.error("Teacher data load nahi ho saka");
+      setTeachers([]);
+      setFilteredTeachers([]);
     } finally {
       setLoading(false);
     }
-  }, [Base_url]);
+  }, [BASE_URL]);
 
   useEffect(() => {
-    fetchFacultyData();
-  }, [fetchFacultyData]);
+    fetchTeachers();
+  }, [fetchTeachers]);
 
- 
-  const handleCreateTeacher = async (formData) => {
-    const token = localStorage.getItem("token");
-    
-   
-    const payload = {
-      ...formData,
-      mobileNumber: formData.mobileNo, 
-      dob: formData.dob || "1990-01-01", 
-      address: formData.address || "Not Provided",
-      companyDetails: {
-        branchName: "Main",
-        courseName: formData.courseName || "General",
-        salary: "0",
-        joiningDate: new Date().toISOString()
-      },
-      bankDetails: {
-        accountHolderName: formData.teacherName,
-        accountNumber: "NA",
-        bankName: "NA",
-        ifscCode: "NA",
-        branch: "NA",
-        branchLocation: "NA"
-      }
-    };
-
-    try {
-      const response = await fetch(`${Base_url}/teacher`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` 
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const res = await response.json();
-      if (res.status === "success") {
-        toast.success("Teacher saved successfully!");
-        setIsCreateOpen(false);
-        fetchFacultyData();
-      } else {
-        toast.error(res.message || "Failed to save");
-      }
-    } catch (error) {
-      toast.error("Network connection error!");
+  /* ================= SEARCH ================= */
+  const handleSearch = (term) => {
+    if (!term) {
+      setFilteredTeachers(teachers);
+    } else {
+      const filtered = teachers.filter((t) =>
+        Object.values(t).some((val) =>
+          String(val).toLowerCase().includes(term.toLowerCase())
+        )
+      );
+      setFilteredTeachers(filtered);
     }
+    setPage(0);
   };
 
-  
-  
-
-  const handleSearch = (term) => {
-    const filtered = rows.filter((row) =>
-      Object.values(row).some(val => String(val).toLowerCase().includes(term.toLowerCase()))
-    );
-    setFilteredRows(filtered);
-    setPage(0);
+  /* ================= CLOSE MODAL ================= */
+  const closeModal = () => {
+    setModalMode(null);
+    setSelectedTeacher(null);
   };
 
   return (
     <Layout>
-      <ToastContainer />
-      <Box sx={{ width: "100%", p: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 3 }}>Teacher Management</Typography>
-        <Box sx={{ mb: 3 }}>
-          <Search buttonText="Add Teacher" onAddClick={() => setIsCreateOpen(true)} onSearch={handleSearch} />
-        </Box>
+      <ToastContainer position="top-right" autoClose={3000} />
 
-        <TableContainer component={Paper}>
-          <Table stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell align="center">Sl.No</TableCell>
-                <TableCell>Teacher Name</TableCell>
-                <TableCell>Department</TableCell>
-                <TableCell align="center">Action</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={4} align="center">Loading...</TableCell></TableRow>
-              ) : (
-                filteredRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row, index) => (
-                  <TableRow key={row._id} hover>
-                    <TableCell align="center">{index + 1 + page * rowsPerPage}</TableCell>
-                    <TableCell>{row.teacherName}</TableCell>
-                    <TableCell>{row.courseName || row.companyDetails?.courseName}</TableCell>
-                    <TableCell align="center">
-                      <IconButton color="primary" onClick={() => { setSelectedTeacher(row); setIsViewOpen(true); }}><VisibilityIcon /></IconButton>
-                      <IconButton color="action" onClick={() => { setSelectedTeacher(row); setIsEditOpen(true); }}><EditIcon /></IconButton>
-                      <IconButton color="error" onClick={() => { setSelectedTeacher(row); setIsDeleteOpen(true); }}><DeleteIcon /></IconButton>
+      <Box p={3}>
+        <Typography variant="h5" fontWeight={700} mb={3}>
+          Teacher Management
+        </Typography>
+
+        <Search
+          buttonText="Add Teacher"
+          onAddClick={() => setModalMode("create")}
+          onSearch={handleSearch}
+        />
+
+        <Paper sx={{ mt: 3 }}>
+          <TableContainer>
+            <Table>
+              <TableHead sx={{ bgcolor: "#f5f5f5" }}>
+                <TableRow>
+                  <TableCell align="center">Sl.No</TableCell>
+                  <TableCell>Teacher Name</TableCell>
+                  <TableCell>Department</TableCell>
+                  <TableCell align="center">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">
+                      Loading...
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                ) : filteredTeachers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">
+                      No teachers found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredTeachers
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((row, index) => (
+                      <TableRow key={row._id}>
+                        <TableCell align="center">
+                          {page * rowsPerPage + index + 1}
+                        </TableCell>
+                        <TableCell>{row.teacherName}</TableCell>
+                        <TableCell>{row.courseName || "N/A"}</TableCell>
+                        <TableCell align="center">
+                          <IconButton
+                            color="primary"
+                            onClick={() => {
+                              setSelectedTeacher(row);
+                              setModalMode("view");
+                            }}
+                          >
+                            <VisibilityIcon />
+                          </IconButton>
 
-        {isCreateOpen && <CreateTeacher handleClose={() => setIsCreateOpen(false)} handleCreate={handleCreateTeacher} />}
-        {isViewOpen && <View open={isViewOpen} onClose={() => setIsViewOpen(false)} teacher={selectedTeacher} />}
-       
+                          <IconButton
+                            onClick={() => {
+                              setSelectedTeacher(row);
+                              setModalMode("edit");
+                            }}
+                          >
+                            <EditIcon />
+                          </IconButton>
+
+                          <IconButton
+                            color="error"
+                            onClick={() => {
+                              setSelectedTeacher(row);
+                              setModalMode("delete");
+                            }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          <TablePagination
+            component="div"
+            count={filteredTeachers.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            onRowsPerPageChange={(e) => {
+              setRowsPerPage(parseInt(e.target.value, 10));
+              setPage(0);
+            }}
+          />
+        </Paper>
+
+        {/* ================= MODALS ================= */}
+        {modalMode === "create" && (
+          <CreateTeacher
+            handleClose={closeModal}
+            handleCreate={fetchTeachers}
+          />
+        )}
+
+        {modalMode === "view" && selectedTeacher && (
+          <ViewTeacher
+            teacher={selectedTeacher}
+            onClose={closeModal}
+          />
+        )}
+
+        {modalMode === "edit" && selectedTeacher && (
+          <EditTeacher
+            teacher={selectedTeacher}
+            handleClose={closeModal}
+            refreshData={fetchTeachers}
+          />
+        )}
+
+        {modalMode === "delete" && selectedTeacher && (
+          <DeleteTeacher
+            data={selectedTeacher}
+            onClose={closeModal}
+            onConfirm={fetchTeachers}
+          />
+        )}
       </Box>
     </Layout>
   );

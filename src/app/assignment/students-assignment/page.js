@@ -1,15 +1,14 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import Cookies from "js-cookie";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // MUI Components
 import {
   Paper, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Box, IconButton, Typography, Tooltip, Chip
+  TableHead, TableRow, Box, IconButton, Typography, Tooltip, Chip, TablePagination
 } from "@mui/material";
 
 // MUI Icons
@@ -29,10 +28,14 @@ import Edit from "@/components/Assignment/StudentsAssignment/Edit/Edit";
 import Delete from "@/components/Assignment/StudentsAssignment/Delete/Delete";
 
 export default function StudentsAssignmentPage() {
-  const { branch } = useParams();
   const [rows, setRows] = useState([]);
+  const [filteredRows, setFilteredRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Pagination States
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Modal States
   const [modalMode, setModalMode] = useState(null); 
@@ -40,9 +43,10 @@ export default function StudentsAssignmentPage() {
 
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
-  // --- 1. Fetch Data Logic ---
+  /* ================= FETCH DATA (Token & Refresh Fix) ================= */
   const fetchAssignmentData = useCallback(async () => {
-    const token = Cookies.get("token") || localStorage.getItem("token");
+    // Refresh par data na jaye isliye localStorage se token check
+    const token = localStorage.getItem("token");
     
     if (!token) {
       setLoading(false);
@@ -51,7 +55,6 @@ export default function StudentsAssignmentPage() {
 
     try {
       setLoading(true);
-      // Backend route /api/studentsAssignment ko call karega
       const response = await fetch(`${Base_url}/studentsAssignment`, {
         method: "GET",
         headers: { 
@@ -60,11 +63,16 @@ export default function StudentsAssignmentPage() {
         },
       });
       const res = await response.json();
-      if (res.status === "success") {
-        setRows(res.data || []);
+      
+      // Agar backend success bhej raha hai toh rows update karein
+      if (res.status === "success" || Array.isArray(res.data)) {
+        const data = res.data || [];
+        setRows(data);
+        setFilteredRows(data);
       }
     } catch (error) {
-      toast.error("Failed to load assignments");
+      console.error("Fetch error:", error);
+      toast.error("Database se assignments load nahi ho saki");
     } finally {
       setLoading(false);
     }
@@ -74,32 +82,34 @@ export default function StudentsAssignmentPage() {
     fetchAssignmentData();
   }, [fetchAssignmentData]);
 
-  // --- 2. Search Filter Logic ---
-  const filteredRows = useMemo(() => {
-    return rows.filter((row) =>
+  /* ================= SEARCH FILTER ================= */
+  useEffect(() => {
+    const filtered = rows.filter((row) =>
       row.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       row.assignmentTitle?.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    setFilteredRows(filtered);
+    setPage(0);
   }, [searchTerm, rows]);
 
-  // --- 3. Delete Logic ---
+  /* ================= DELETE ACTION ================= */
   const handleConfirmDelete = async () => {
-    const token = Cookies.get("token") || localStorage.getItem("token");
+    const token = localStorage.getItem("token");
     try {
       const response = await fetch(`${Base_url}/studentsAssignment/${selectedData._id}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` },
       });
       const res = await response.json();
-      if (response.ok && res.status === "success") {
+      if (res.status === "success") {
         toast.success("Assignment deleted successfully!");
         closeModals();
-        fetchAssignmentData(); // List Refresh
+        fetchAssignmentData(); // Table refresh
       } else {
         toast.error(res.message || "Delete failed");
       }
     } catch (error) {
-      toast.error("Network error while deleting");
+      toast.error("Server connection failed during delete");
     }
   };
 
@@ -112,8 +122,8 @@ export default function StudentsAssignmentPage() {
     <Layout>
       <ToastContainer position="top-right" autoClose={3000} />
       <Box sx={{ p: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 3, color: "#072eb0", textTransform: 'uppercase' }}>
-          Student Assignments List
+        <Typography variant="h5" sx={{ fontWeight: 700, mb: 3, color: "#072eb0" }}>
+          STUDENT ASSIGNMENTS MANAGEMENT
         </Typography>
         
         {/* Search & Add Button */}
@@ -123,60 +133,69 @@ export default function StudentsAssignmentPage() {
           onSearch={(term) => setSearchTerm(term)}
         />
 
-        <TableContainer component={Paper} sx={{ mt: 3, borderRadius: "12px", border: "1px solid #eee", overflow: 'hidden' }}>
+        <TableContainer component={Paper} sx={{ mt: 3, borderRadius: "12px", boxShadow: 3 }}>
           <Table stickyHeader>
             <TableHead>
-              <TableRow sx={{ backgroundColor: "#f8f9fa" }}>
-                <TableCell sx={{ fontWeight: 700 }}>SI.No</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Student Name</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Assignment Title</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Due Date</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 700 }}>Actions</TableCell>
+              <TableRow sx={{ "& th": { backgroundColor: "#f5f5f5", fontWeight: 700 } }}>
+                <TableCell align="center">SI.No</TableCell>
+                <TableCell>Student Name</TableCell>
+                <TableCell>Assignment Title</TableCell>
+                <TableCell>Due Date</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={6} align="center">Loading assignments...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} align="center">Loading data from database...</TableCell></TableRow>
               ) : filteredRows.length === 0 ? (
                 <TableRow><TableCell colSpan={6} align="center">No assignments found</TableCell></TableRow>
               ) : (
-                filteredRows.map((row, index) => (
-                  <TableRow key={row._id} hover>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell sx={{ fontWeight: 500 }}>{row.studentName}</TableCell>
-                    <TableCell>{row.assignmentTitle}</TableCell>
+                filteredRows
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((row, index) => (
+                  <TableRow key={row._id || index} hover>
+                    <TableCell align="center">{index + 1 + page * rowsPerPage}</TableCell>
+                    <TableCell sx={{ fontWeight: 500 }}>{row.studentName || "N/A"}</TableCell>
+                    <TableCell>{row.assignmentTitle || "N/A"}</TableCell>
                     <TableCell>{row.dueDate ? new Date(row.dueDate).toLocaleDateString("en-IN") : "N/A"}</TableCell>
                     <TableCell>
                       <Chip 
-                        label={row.status} 
+                        label={row.status || "Pending"} 
                         size="small" 
-                        color={row.status === "Completed" ? "success" : "warning"} 
+                        color={row.status === "Completed" ? "success" : "primary"} 
                         sx={{ fontWeight: 600 }}
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Tooltip title="View Details">
+                      <Box sx={{ display: "flex", justifyContent: "center", gap: 1 }}>
                         <IconButton color="primary" onClick={() => { setSelectedData(row); setModalMode('view'); }}>
                           <VisibilityIcon fontSize="small" />
                         </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Edit Assignment">
                         <IconButton sx={{ color: "#ed6c02" }} onClick={() => { setSelectedData(row); setModalMode('edit'); }}>
                           <EditIcon fontSize="small" />
                         </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete Assignment">
                         <IconButton color="error" onClick={() => { setSelectedData(row); setModalMode('delete'); }}>
                           <DeleteIcon fontSize="small" />
                         </IconButton>
-                      </Tooltip>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
+          <TablePagination
+            component="div"
+            count={filteredRows.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={(_, p) => setPage(p)}
+            onRowsPerPageChange={(e) => {
+              setRowsPerPage(parseInt(e.target.value, 10));
+              setPage(0);
+            }}
+          />
         </TableContainer>
 
         {/* --- Dialog Management --- */}

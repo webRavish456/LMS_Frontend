@@ -1,182 +1,206 @@
-'use client'
-import React, { useState } from "react";
-import { 
-  Box, Typography, Paper, Table, TableBody, 
-  TableCell, TableContainer, TableHead, TableRow, 
-  Switch, IconButton, Button, Stack, Container, 
-  Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Checkbox, Breadcrumbs, Link
-} from "@mui/material";
-import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import CloseIcon from '@mui/icons-material/Close';
+"use client";
+
+import React, { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
+import {
+  Box,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Button,
+  Typography,
+} from "@mui/material";
+
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+
+import CreateRoleModal from "@/components/Roles/Create/Create";
+import EditRoleModal from "@/components/Roles/Edit/Edit";
+import ViewRoleModal from "@/components/Roles/view/View";
+
 import { toast } from "react-toastify";
 
-const RolesListPage = () => {
-  const [open, setOpen] = useState(false); // Dialog Control
-  const [roleName, setRoleName] = useState("");
-  
-  // Roles Table Data
-  const [roles, setRoles] = useState([
-    { id: 1, name: "Super Admin", status: true, canDelete: false },
-    { id: 2, name: "Admin", status: true, canDelete: true },
-    { id: 3, name: "Teacher", status: true, canDelete: true },
-    { id: 4, name: "Student", status: true, canDelete: true },
-  ]);
+const RolesPage = () => {
+  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-  // Permissions List (वही जो इमेज में थी)
-  const modules = [
-    "Branch", "InHouseRecruitment", "OutsideRecruitment", "Employee", 
-    "Freelancer", "Roles", "PunchIn/PunchOut", "DailyLog", 
-    "AttendanceRequest", "AttendanceDetails"
-  ];
+  const [roles, setRoles] = useState([]);
 
-  const [permissions, setPermissions] = useState(
-    modules.map(mod => ({ module: mod, create: false, read: false, update: false, delete: false }))
-  );
+  const [openCreate, setOpenCreate] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [openView, setOpenView] = useState(false);
 
-  const handleCheckboxChange = (index, field) => {
-    const updated = [...permissions];
-    updated[index][field] = !updated[index][field];
-    setPermissions(updated);
+  const [editData, setEditData] = useState(null);
+  const [viewData, setViewData] = useState(null);
+
+  /* ================= FETCH ROLES (SAME AS STAFF) ================= */
+  const fetchRoles = async () => {
+    try {
+      if (!token) return;
+
+      const res = await fetch(`${BASE_URL}/role`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (data.status === "success") {
+        setRoles(data.data || []);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load roles");
+    }
   };
 
-  const handleSave = () => {
-    if (!roleName) return toast.error("Please enter role name");
-    
-    // नया रोल लिस्ट में जोड़ें
-    const newRole = {
-      id: roles.length + 1,
-      name: roleName,
-      status: true,
-      canDelete: true
-    };
-    
-    setRoles([...roles, newRole]);
-    toast.success(`${roleName} रोल सफलतापूर्वक बनाया गया!`);
-    
-    // रिसेट और क्लोज
-    setOpen(false);
-    setRoleName("");
-    setPermissions(modules.map(mod => ({ module: mod, create: false, read: false, update: false, delete: false })));
+  useEffect(() => {
+    fetchRoles();
+  }, []);
+
+  /* ================= DELETE ================= */
+  const handleDelete = async (id) => {
+    try {
+      const res = await fetch(`${BASE_URL}/role/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (data.status === "success") {
+        toast.success("Role deleted successfully"); // ✅ STAFF STYLE
+        fetchRoles();
+      }
+    } catch {
+      toast.error("Delete failed");
+    }
   };
 
   return (
     <Layout>
-      <Container maxWidth="xl" sx={{ py: 4 }}>
-        {/* Header Section */}
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-          <Box>
-            <Typography variant="h5" fontWeight="bold" sx={{ color: "#334155" }}>
-              Employees Role
-            </Typography>
-            <Breadcrumbs sx={{ fontSize: "0.85rem", mt: 0.5 }}>
-              <Link underline="hover" color="inherit" href="#">Dashboard</Link>
-              <Typography color="text.primary" sx={{ fontSize: "0.85rem" }}>Roles</Typography>
-            </Breadcrumbs>
-          </Box>
-          
-          <Button 
-            variant="contained" 
-            startIcon={<AddIcon />}
-            onClick={() => setOpen(true)} // Dialog खोलें
-            sx={{ bgcolor: "#0084ff", textTransform: 'none', borderRadius: 2 }}
-          >
+      <Box sx={{ p: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            mb: 2,
+          }}
+        >
+          <Typography variant="h5" fontWeight={600}>
+            Roles & Permissions
+          </Typography>
+
+          <Button variant="contained" onClick={() => setOpenCreate(true)}>
             Create Role
           </Button>
-        </Stack>
+        </Box>
 
-        {/* Roles List Table */}
-        <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}>
-          <Table>
-            <TableHead sx={{ bgcolor: "#f8fafc" }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 'bold', color: "#475569" }}>ROLE</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 'bold', color: "#475569" }}>STATUS</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 'bold', color: "#475569" }}>ACTIONS</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {roles.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell sx={{ color: "#1e293b", fontWeight: 500 }}>{row.name}</TableCell>
-                  <TableCell align="center">
-                    <Switch checked={row.status} color="primary" />
-                  </TableCell>
-                  <TableCell align="center">
-                    <IconButton size="small" color="success"><EditIcon fontSize="small" /></IconButton>
-                    {row.canDelete && <IconButton size="small" color="error"><DeleteIcon fontSize="small" /></IconButton>}
-                  </TableCell>
+        <Paper>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Role Name</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell align="center">Actions</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
 
-        {/* --- Create Role Dialog (पॉप-अप में परमिशन टेबल) --- */}
-        <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
-          <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: "#f8fafc" }}>
-            <Typography variant="h6" fontWeight="bold">Create New Role</Typography>
-            <IconButton onClick={() => setOpen(false)}><CloseIcon /></IconButton>
-          </DialogTitle>
-          
-          <DialogContent dividers>
-            <Box sx={{ mb: 3, mt: 1 }}>
-              <TextField 
-                fullWidth 
-                label="Enter role name" 
-                variant="outlined" 
-                size="small" 
-                value={roleName}
-                onChange={(e) => setRoleName(e.target.value)}
-              />
-            </Box>
+              <TableBody>
+                {roles.length > 0 ? (
+                  roles.map((role) => (
+                    <TableRow key={role._id}>
+                      <TableCell>{role.roleName}</TableCell>
+                      <TableCell>
+                        {role.status ? "Active" : "Inactive"}
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton
+                          onClick={() => {
+                            setViewData(role);
+                            setOpenView(true);
+                          }}
+                        >
+                          <VisibilityIcon />
+                        </IconButton>
 
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
-                <TableHead sx={{ bgcolor: "#f8fafc" }}>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 'bold' }}>PERMISSIONS</TableCell>
-                    <TableCell align="center">CREATE</TableCell>
-                    <TableCell align="center">READ</TableCell>
-                    <TableCell align="center">UPDATE</TableCell>
-                    <TableCell align="center">DELETE</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {permissions.map((row, index) => (
-                    <TableRow key={index}>
-                      <TableCell sx={{ fontSize: "0.85rem" }}>{row.module}</TableCell>
-                      {['create', 'read', 'update', 'delete'].map(field => (
-                        <TableCell align="center" key={field}>
-                          <Checkbox 
-                            checked={row[field]} 
-                            onChange={() => handleCheckboxChange(index, field)}
-                            size="small"
-                          />
-                        </TableCell>
-                      ))}
+                        <IconButton
+                          onClick={() => {
+                            setEditData(role);
+                            setOpenEdit(true);
+                          }}
+                        >
+                          <EditIcon />
+                        </IconButton>
+
+                        <IconButton
+                          onClick={() => handleDelete(role._id)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </DialogContent>
-<DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: "#f8fafc" }}>
-  {/* यहाँ component="span" जोड़ें */}
-  <Typography variant="h6" fontWeight="bold" component="span">
-    Create New Role
-  </Typography>
-  <IconButton onClick={() => setOpen(false)}>
-    <CloseIcon />
-  </IconButton>
-</DialogTitle>
-        </Dialog>
-      </Container>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={3} align="center">
+                      No roles found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+
+        {/* ================= CREATE (STAFF PATTERN) ================= */}
+        <CreateRoleModal
+          open={openCreate}
+          handleClose={() => setOpenCreate(false)}
+          onSuccess={(newRole) => {
+            toast.success("Role created successfully"); // ✅ HERE
+            setRoles((prev) => [newRole, ...prev]);     // ✅ instant update
+            setOpenCreate(false);
+          }}
+        />
+
+        {/* ================= EDIT ================= */}
+        <EditRoleModal
+  open={openEdit}
+  role={editData}
+  handleClose={() => setOpenEdit(false)}
+  onSuccess={(updatedRole) => {
+    toast.success("Role updated successfully");
+    setRoles((prev) =>
+      prev.map((r) =>
+        r._id === updatedRole._id ? updatedRole : r
+      )
+    );
+    setOpenEdit(false);
+  }}
+/>
+
+
+        {/* ================= VIEW ================= */}
+        <ViewRoleModal
+          open={openView}
+          role={viewData}
+          handleClose={() => setOpenView(false)}
+        />
+      </Box>
     </Layout>
   );
 };
 
-export default RolesListPage;
+export default RolesPage;
