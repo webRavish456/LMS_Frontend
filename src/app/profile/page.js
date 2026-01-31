@@ -77,7 +77,7 @@ const ProfileList = () => {
   return (
     <Layout>
       <Box sx={{ p: 3 }}>
-        {/* Header */}
+       
         <Box
           sx={{
             display: "flex",
@@ -99,8 +99,7 @@ const ProfileList = () => {
             Add Profile
           </Button>
         </Box>
-
-        {/* Table */}
+        
         <TableContainer component={Paper}>
           <Table>
             <TableHead sx={{ bgcolor: "#f5f5f5" }}>

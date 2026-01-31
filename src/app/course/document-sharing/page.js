@@ -50,8 +50,8 @@ const DocumentSharing = () => {
 
   const columns = [
     { id: "si", label: "SI.No", align: "center" },
-    { id: "topic", label: "Topic", align: "left" },
-    { id: "topicDescription", label: "Description", align: "left" },
+    { id: "Course Title", label: "Course Title", align: "left" },
+    { id: "Course Description", label: "Course Description", align: "left" },
     { id: "course", label: "Course", align: "center" },
     { id: "teacher", label: "Teacher", align: "center" },
     { id: "document", label: "Download", align: "center" },

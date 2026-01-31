@@ -12,11 +12,13 @@ const Header = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const router = useRouter();
 
+  // token safely get
   const token =
     typeof window !== "undefined"
       ? Cookies.get("token") || localStorage.getItem("token")
       : null;
 
+  // BASE URL (backend running on 8000)
   const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
   /* ================= FETCH NOTIFICATIONS ================= */
@@ -35,12 +37,13 @@ const Header = () => {
 
         const data = await res.json();
 
-        if (data.status === "success" && Array.isArray(data.data)) {
+        if (data?.status === "success" && Array.isArray(data.data)) {
           const unread = data.data.filter((n) => !n.isRead).length;
           setUnreadCount(unread);
         }
-      } catch (err) {
-        console.error("Notification fetch error:", err);
+      } catch (error) {
+        // silent fail (no console error spam)
+        console.warn("Notification fetch failed");
       }
     };
 
@@ -58,10 +61,10 @@ const Header = () => {
     localStorage.clear();
     sessionStorage.clear();
 
-    toast.success("Logged out");
+    toast.success("Logged out successfully");
 
     setTimeout(() => {
-      window.location.replace("/login");
+      router.replace("/login");
     }, 800);
   };
 
@@ -75,7 +78,7 @@ const Header = () => {
         className="header-right"
         style={{ display: "flex", gap: "18px", alignItems: "center" }}
       >
-        {/* 🔔 NOTIFICATION ICON */}
+        {/* 🔔 NOTIFICATION */}
         <div
           style={{ position: "relative", cursor: "pointer" }}
           onClick={() => router.push("/notification")}
@@ -105,10 +108,10 @@ const Header = () => {
           )}
         </div>
 
-        {/* 👤 PROFILE ICON */}
+        {/* 👤 PROFILE */}
         <div
           style={{ position: "relative", cursor: "pointer" }}
-          onClick={() => setIsProfileOpen(!isProfileOpen)}
+          onClick={() => setIsProfileOpen((prev) => !prev)}
         >
           <User size={24} color="#1e3a8a" />
 
@@ -119,11 +122,12 @@ const Header = () => {
                 right: 0,
                 top: "110%",
                 background: "#fff",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                 borderRadius: "8px",
                 padding: "10px",
                 minWidth: "150px",
               }}
+              onClick={(e) => e.stopPropagation()}
             >
               <Link href="/profile">My Profile</Link>
               <hr />

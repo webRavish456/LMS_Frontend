@@ -1,9 +1,17 @@
-'use client';
+"use client";
 
 import React, { useEffect, useState, useCallback } from "react";
 import {
-  Box, Paper, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, TablePagination, IconButton, Tooltip
+  Box,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  IconButton,
 } from "@mui/material";
 
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -48,24 +56,24 @@ const CourseList = () => {
   const [openDelete, setOpenDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  /* ================= TABLE COLUMNS ================= */
   const columns = [
     "SI.No",
-    "Course ID",
     "Course Name",
     "Description",
     "Duration",
     "Pricing",
-    "Materials",
-    "Teachers",
-    "Created At",
+    "Syllabus",
     "Status",
     "Action",
   ];
 
+  /* ================= TOKEN ================= */
   useEffect(() => {
     setToken(localStorage.getItem("token"));
   }, []);
 
+  /* ================= FETCH COURSES ================= */
   const fetchCourses = useCallback(async () => {
     if (!token) return;
 
@@ -77,19 +85,8 @@ const CourseList = () => {
       const json = await res.json();
 
       if (res.ok && json.status === "success") {
-        const formatted = json.data.map((item, i) => ({
-          ...item,
-          si: i + 1,
-          displayDescription: item.courseDescription?.substring(0, 30) || "N/A",
-          displayPricing: `₹${item.pricing || 0}`,
-          displayTeachers: item.assignedTeachers || "N/A",
-          displayDate: item.createdAt
-            ? new Date(item.createdAt).toLocaleDateString()
-            : "N/A",
-        }));
-
-        setRows(formatted);
-        setFilteredRows(formatted);
+        setRows(json.data || []);
+        setFilteredRows(json.data || []);
       }
     } catch {
       setRows([]);
@@ -101,21 +98,25 @@ const CourseList = () => {
     fetchCourses();
   }, [fetchCourses, refresh]);
 
+  /* ================= SEARCH ================= */
   useEffect(() => {
     const lower = searchTerm.toLowerCase();
-    setFilteredRows(
-      rows.filter(
-        r =>
-          r.courseName.toLowerCase().includes(lower) ||
-          r.courseId.toLowerCase().includes(lower)
-      )
+
+    const filtered = rows.filter(
+      (r) =>
+        r.courseName?.toLowerCase().includes(lower) ||
+        r.courseId?.toLowerCase().includes(lower)
     );
+
+    setFilteredRows(filtered);
     setPage(0);
   }, [searchTerm, rows]);
 
+  /* ================= DELETE ================= */
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
+
       const res = await fetch(`${BASE_URL}/courselist/${deleteId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
@@ -124,7 +125,7 @@ const CourseList = () => {
       if (!res.ok) throw new Error("Delete failed");
 
       toast.success("Course deleted successfully");
-      setRefresh(prev => !prev);
+      setRefresh((p) => !p);
       setOpenDelete(false);
     } catch (e) {
       toast.error(e.message);
@@ -157,14 +158,21 @@ const CourseList = () => {
                 {filteredRows.length ? (
                   filteredRows
                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map(row => (
+                    .map((row, index) => (
                       <TableRow key={row._id} hover>
-                        <TableCell>{row.si}</TableCell>
-                        <TableCell>{row.courseId}</TableCell>
+                        <TableCell>
+                          {page * rowsPerPage + index + 1}
+                        </TableCell>
+
                         <TableCell>{row.courseName}</TableCell>
-                        <TableCell>{row.displayDescription}</TableCell>
+
+                        <TableCell>
+                          {row.courseDescription?.substring(0, 30)}...
+                        </TableCell>
+
                         <TableCell>{row.duration}</TableCell>
-                        <TableCell>{row.displayPricing}</TableCell>
+
+                        <TableCell>₹{row.pricing}</TableCell>
 
                         <TableCell align="center">
                           {row.syllabus && (
@@ -180,9 +188,6 @@ const CourseList = () => {
                           {!row.syllabus && !row.video && "N/A"}
                         </TableCell>
 
-                        <TableCell>{row.displayTeachers}</TableCell>
-                        <TableCell>{row.displayDate}</TableCell>
-
                         <TableCell align="center">
                           {row.status === "Active" ? (
                             <CheckCircleIcon sx={{ color: "green" }} />
@@ -192,13 +197,30 @@ const CourseList = () => {
                         </TableCell>
 
                         <TableCell>
-                          <IconButton onClick={() => { setViewData(row); setOpenView(true); }}>
+                          <IconButton
+                            onClick={() => {
+                              setViewData(row);
+                              setOpenView(true);
+                            }}
+                          >
                             <VisibilityIcon fontSize="small" />
                           </IconButton>
-                          <IconButton onClick={() => { setEditData(row); setOpenEdit(true); }}>
+
+                          <IconButton
+                            onClick={() => {
+                              setEditData(row);
+                              setOpenEdit(true);
+                            }}
+                          >
                             <EditIcon fontSize="small" color="primary" />
                           </IconButton>
-                          <IconButton onClick={() => { setDeleteId(row._id); setOpenDelete(true); }}>
+
+                          <IconButton
+                            onClick={() => {
+                              setDeleteId(row._id);
+                              setOpenDelete(true);
+                            }}
+                          >
                             <DeleteIcon fontSize="small" color="error" />
                           </IconButton>
                         </TableCell>
@@ -237,7 +259,7 @@ const CourseList = () => {
           dialogTitle="Create Course"
           dialogContent={
             <CreateCourseList
-              handleCreate={() => setRefresh(p => !p)}
+              handleCreate={() => setRefresh((p) => !p)}
               handleClose={() => setOpenCreate(false)}
             />
           }
@@ -265,7 +287,7 @@ const CourseList = () => {
             editData && (
               <EditCourseList
                 editData={editData}
-                handleUpdate={() => setRefresh(p => !p)}
+                handleUpdate={() => setRefresh((p) => !p)}
                 handleClose={() => setOpenEdit(false)}
               />
             )
@@ -284,7 +306,6 @@ const CourseList = () => {
             />
           }
         />
-
       </Box>
     </Layout>
   );

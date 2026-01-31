@@ -1,233 +1,199 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react";
-import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, ResponsiveContainer } from 'recharts';
-import { Box, Grid, Paper, Typography } from '@mui/material';
-import Cookies from "js-cookie";
-import Layout from "@/components/Layout";
+import { useEffect, useState } from "react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  ResponsiveContainer,
+} from "recharts";
+import { Box, Grid, Paper, Typography } from "@mui/material";
 
 export default function Dashboard() {
+  const [token, setToken] = useState(null);
 
-    const [studentCourse, setStudentCourse] = useState([]);
-    const [dailyExam, setDailyExam] = useState([]);
-    const [teacherData, setTeacherData] = useState([]);
-    const [assignmentData, setAssignmentData] = useState([]);
+  const [studentCourse, setStudentCourse] = useState([]);
+  const [dailyExam, setDailyExam] = useState([]);
+  const [teacherData, setTeacherData] = useState([]);
+  const [assignmentData, setAssignmentData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
+  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
-    const [loading, setLoading] = useState(true)
-
-    const token = Cookies.get("token");
-    const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
-
-    useEffect(() => {
-      
-      
-        const fetchData = async () => {
-          try {
-            const [studentRes, examRes, teacherRes, assignmentRes] = await Promise.all([
-              fetch(`${Base_url}/allstudents`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.text()).then(JSON.parse),
-              fetch(`${Base_url}/exam`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.text()).then(JSON.parse),
-              fetch(`${Base_url}/teacher`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.text()).then(JSON.parse),
-              fetch(`${Base_url}/allAssignment`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.text()).then(JSON.parse)
-            ]);
-      
-
-            if (studentRes.status === "success") {
-                const studentData = studentRes.data.reduce((acc, item) => {
-                  const course = item.course;
-                  acc[course] = (acc[course] || 0) + 1; 
-                  return acc;
-                }, {});
-              
-                const formattedData = Object.entries(studentData).map(([name, value]) => ({
-                  name,   
-                  value,  
-                }));
-              
-              
-                setStudentCourse(formattedData);
-              }
-              
-      
  
-            if (examRes.status === "success") {
-              const dailyCounts = examRes.data.reduce((acc, item) => {
-                const date = new Date(item.createdAt).toLocaleDateString();
-                acc[date] = (acc[date] || 0) + 1;
-                return acc;
-              }, {});
-              const formattedData = Object.entries(dailyCounts).map(([date, count]) => ({
-                date,
-                exam: count
-              }));
-              console.log(formattedData)
-                setDailyExam(formattedData);
-            }
-      
-            if (assignmentRes.status === "success") {
-                const courseAssignments = assignmentRes.data.reduce((acc, item) => {
-                  const course = item.course; 
-                  acc[course] = (acc[course] || 0) + 1; 
-                  return acc;
-                }, {});
-                const formattedData = Object.entries(courseAssignments).map(([name, value]) => ({
-                  name, 
-                  value, 
-                }));
-                setAssignmentData(formattedData); 
-              }
+  useEffect(() => {
+    const t = localStorage.getItem("token");
+    if (t) setToken(t);
+  }, []);
 
-            if (teacherRes.status === "success") {
-                const courseCounts = teacherRes.data.reduce((acc, item) => {
-                  const course = item.companyDetails.courseName;
-                  acc[course] = (acc[course] || 0) + 1;
-                  return acc;
-                }, {});
-              
-                const formattedData = Object.entries(courseCounts).map(([name, value]) => ({
-                  name, 
-                  value, 
-                }));
-                 console.log(formattedData)
-                setTeacherData(formattedData);
-              }
-    
+ 
+  useEffect(() => {
+    if (!token) return;
 
-            setLoading(false)
-      
-          } catch (error) {
-            console.error("Error fetching data:", error);
-          }
-        };
-       if(loading) {
-        fetchData();
-       }
-       
-      }, [loading]);
-      
+    const fetchData = async () => {
+      try {
+        const headers = { Authorization: `Bearer ${token}` };
 
-    const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+        const [studentRes, examRes, teacherRes, assignmentRes] =
+          await Promise.all([
+            fetch(`${BASE_URL}/allstudents`, { headers }).then((r) => r.json()),
+            fetch(`${BASE_URL}/exam`, { headers }).then((r) => r.json()),
+            fetch(`${BASE_URL}/teacher`, { headers }).then((r) => r.json()),
+            fetch(`${BASE_URL}/allAssignment`, { headers }).then((r) =>
+              r.json()
+            ),
+          ]);
 
+        // Students per Course
+        if (studentRes.status === "success") {
+          const result = studentRes.data.reduce((acc, cur) => {
+            acc[cur.course] = (acc[cur.course] || 0) + 1;
+            return acc;
+          }, {});
+          setStudentCourse(
+            Object.entries(result).map(([name, value]) => ({ name, value }))
+          );
+        }
+
+        // Exam per day
+        if (examRes.status === "success") {
+          const result = examRes.data.reduce((acc, cur) => {
+            const date = new Date(cur.createdAt).toLocaleDateString();
+            acc[date] = (acc[date] || 0) + 1;
+            return acc;
+          }, {});
+          setDailyExam(
+            Object.entries(result).map(([date, exam]) => ({ date, exam }))
+          );
+        }
+
+        // Assignment
+        if (assignmentRes.status === "success") {
+          const result = assignmentRes.data.reduce((acc, cur) => {
+            acc[cur.course] = (acc[cur.course] || 0) + 1;
+            return acc;
+          }, {});
+          setAssignmentData(
+            Object.entries(result).map(([name, value]) => ({ name, value }))
+          );
+        }
+
+        // Teacher
+        if (teacherRes.status === "success") {
+          const result = teacherRes.data.reduce((acc, cur) => {
+            const course = cur.companyDetails?.courseName;
+            if (course) acc[course] = (acc[course] || 0) + 1;
+            return acc;
+          }, {});
+          setTeacherData(
+            Object.entries(result).map(([name, value]) => ({ name, value }))
+          );
+        }
+
+        setLoading(false);
+      } catch (err) {
+        console.error("Dashboard error:", err);
+      }
+    };
+
+    fetchData();
+  }, [token]);
+
+  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
+
+  if (loading)
     return (
-      <Layout>
-        <Box sx={{
-              flexGrow: 1,
-              overflowY: "auto",
-              height: "100vh",
-              paddingBottom: 4,
-              marginBottom: "20px"
-            }}>
-
-        <Box sx={{ flexGrow: 1, p: 3 }}>
-            <Grid container spacing={3}>
-            
-                <Grid size={{xs:12, md:6}}>
-                    <Paper sx={{ p: 2 }}>
-                        <Typography variant="h6" gutterBottom>
-                          Students per Course
-                        </Typography>
-                        <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                        <Pie
-                        data={studentCourse}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) =>
-                            `${name} ${(percent * 100).toFixed(0)}%`
-                        }
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        >
-                        {studentCourse.map((entry, index) => (
-                            <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                            />
-                        ))}
-                        </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-                    </Paper>
-                </Grid>
-
-                <Grid size={{xs:12, md:6}}>
-                <Paper sx={{ p: 2 }}>
-                    <Typography variant="h6" gutterBottom>
-                     Exam
-                    </Typography>
-                    <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={dailyExam}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis allowDecimals={false} />
-                        <Tooltip />
-                        <Legend />
-                        <Line type="monotone" dataKey="exam" stroke="#8884d8" />
-                    </LineChart>
-                    </ResponsiveContainer>
-                </Paper>
-                </Grid>
-
-          
-                <Grid size={{xs:12, md:6}}>
-                <Paper sx={{ p: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                    Number of Assignments by Course
-                </Typography>
-                <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={assignmentData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="value" fill="#8884d8" />
-                    </BarChart>
-                </ResponsiveContainer>
-                </Paper>
-                </Grid>
-
-            
-                  <Grid size={{xs:12, md:6}}>
-                    <Paper sx={{ p: 2 }}>
-                        <Typography variant="h6" gutterBottom>
-                            Teacher per course
-                        </Typography>
-                        <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                        <Pie
-                        data={teacherData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) =>
-                            `${name} ${(percent * 100).toFixed(0)}%`
-                        }
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        >
-                        {teacherData.map((entry, index) => (
-                            <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                            />
-                        ))}
-                        </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-                    </Paper>
-                </Grid>
-            </Grid>
-        </Box>
-        </Box>
-        </Layout>
+      <Typography align="center" sx={{ mt: 10 }}>
+        Loading dashboard...
+      </Typography>
     );
-};
 
+  return (
+    <Layout>
+    <Box sx={{ p: 3 }}>
+      <Grid container spacing={3}>
+        {/* Students */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2, minHeight: 380 }}>
+            <Typography variant="h6">Students per Course</Typography>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie data={studentCourse} dataKey="value" outerRadius={80} label>
+                  {studentCourse.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Legend />
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </Paper>
+        </Grid>
+
+        {/* Exams */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2, minHeight: 380 }}>
+            <Typography variant="h6">Exams</Typography>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={dailyExam}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Legend />
+                <Line dataKey="exam" stroke="#8884d8" />
+              </LineChart>
+            </ResponsiveContainer>
+          </Paper>
+        </Grid>
+
+        {/* Assignment */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2, minHeight: 380 }}>
+            <Typography variant="h6">
+              Number of Assignments by Course
+            </Typography>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={assignmentData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="value" fill="#8884d8" />
+              </BarChart>
+            </ResponsiveContainer>
+          </Paper>
+        </Grid>
+
+        {/* Teacher */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2, minHeight: 380 }}>
+            <Typography variant="h6">Teacher per Course</Typography>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie data={teacherData} dataKey="value" outerRadius={80} label>
+                  {teacherData.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Legend />
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
+    </Layout>
+  );
+}

@@ -29,8 +29,8 @@ const Menuitems = [
 
   {
     icon: "/sidebar/faculty.png",
-    label: "Teacher",
-    href: "/teacher",
+    label: "Faculty",
+    href: "/faculty",
   },
     {
     icon: "/sidebar/staff.png",
@@ -181,11 +181,7 @@ const Menuitems = [
     href:"/roles",
   },
 
-  {
-    icon:"/sidebar/profile.png",
-    label:"Profile",
-    href:"/profile",
-  },
+
   {
     icon:"/sidebar/setting.png",
     label:"Setting",
