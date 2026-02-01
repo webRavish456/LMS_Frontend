@@ -10,16 +10,37 @@ import { useRouter } from "next/navigation";
 const Header = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [profilePhoto, setProfilePhoto] = useState(null);
+
   const router = useRouter();
 
-  // token safely get
   const token =
     typeof window !== "undefined"
       ? Cookies.get("token") || localStorage.getItem("token")
       : null;
 
-  // BASE URL (backend running on 8000)
   const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+
+  /* ================= LOAD PROFILE PHOTO ================= */
+  useEffect(() => {
+    const loadPhoto = () => {
+      const photo =
+        typeof window !== "undefined"
+          ? JSON.parse(localStorage.getItem("profilePhoto"))
+          : null;
+
+      setProfilePhoto(photo);
+    };
+
+    loadPhoto();
+
+    // 🔥 listen profile update
+    window.addEventListener("profile-updated", loadPhoto);
+
+    return () => {
+      window.removeEventListener("profile-updated", loadPhoto);
+    };
+  }, []);
 
   /* ================= FETCH NOTIFICATIONS ================= */
   useEffect(() => {
@@ -41,8 +62,7 @@ const Header = () => {
           const unread = data.data.filter((n) => !n.isRead).length;
           setUnreadCount(unread);
         }
-      } catch (error) {
-        // silent fail (no console error spam)
+      } catch {
         console.warn("Notification fetch failed");
       }
     };
@@ -108,12 +128,26 @@ const Header = () => {
           )}
         </div>
 
-        {/* 👤 PROFILE */}
+        {/* 👤 PROFILE IMAGE / ICON */}
         <div
           style={{ position: "relative", cursor: "pointer" }}
           onClick={() => setIsProfileOpen((prev) => !prev)}
         >
-          <User size={24} color="#1e3a8a" />
+          {profilePhoto ? (
+            <img
+              src={profilePhoto}
+              alt="Profile"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                objectFit: "cover",
+                border: "1px solid #ddd",
+              }}
+            />
+          ) : (
+            <User size={24} color="#1e3a8a" />
+          )}
 
           {isProfileOpen && (
             <div
@@ -129,10 +163,28 @@ const Header = () => {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <Link href="/profile">My Profile</Link>
-              <hr />
+              <Link
+                href="/profile"
+                style={{
+                  display: "block",
+                  color: "#000",
+                  textDecoration: "none",
+                  padding: "6px 4px",
+                  fontWeight: 500,
+                }}
+              >
+                My Profile
+              </Link>
+
+              <hr style={{ margin: "6px 0" }} />
+
               <div
-                style={{ color: "red", cursor: "pointer" }}
+                style={{
+                  color: "#000",
+                  cursor: "pointer",
+                  padding: "6px 4px",
+                  fontWeight: 500,
+                }}
                 onClick={handleLogout}
               >
                 Logout

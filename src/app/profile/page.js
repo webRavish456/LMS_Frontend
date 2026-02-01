@@ -1,152 +1,228 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
-  Box,
+  Card,
+  CardContent,
   Button,
+  TextField,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
   Typography,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  CircularProgress,
+  Box,
+  Grid,
+  Avatar,
+  FormControl,
+  FormLabel,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
+
 import Layout from "@/components/Layout";
+import Cookies from "js-cookie";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+import CommonDialog from "@/components/CommonDialog/CommonDialog";
 import CreateProfile from "@/components/Profile/Create/Create";
-import { toast } from "react-toastify";
+import EditProfile from "@/components/Profile/Edit/Edit";
 
-const ProfileList = () => {
-  const [rows, setRows] = useState([]);
+export default function ProfilePage() {
+  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
+
+  const [token, setToken] = useState(null);
+  const [profileId, setProfileId] = useState(null);
+
+  const [profile, setProfile] = useState({});
   const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
+
   const [openCreate, setOpenCreate] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
 
-  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+  /* ================= CLIENT SIDE STORAGE ================= */
+  useEffect(() => {
+    const t =
+      Cookies.get("token") ||
+      (typeof window !== "undefined" ? localStorage.getItem("token") : null);
 
-  // 🔐 SAFE FETCH
-  const fetchProfiles = async () => {
-  try {
-    setLoading(true);
+    const pid =
+      typeof window !== "undefined"
+        ? localStorage.getItem("profileId")
+        : null;
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setRows([]);
+    setToken(t);
+    setProfileId(pid && pid !== "undefined" ? JSON.parse(pid) : null);
+  }, []);
+
+  /* ================= FETCH PROFILE ================= */
+  const fetchProfile = useCallback(async () => {
+    if (!token || !profileId) {
+      setLoading(false);
       return;
     }
 
-    const res = await fetch(`${BASE_URL}/profile`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    try {
+      const res = await fetch(`${Base_url}/profile/${profileId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    const text = await res.text();
+      const result = await res.json();
 
-    // HTML response protection
-    if (text.startsWith("<!DOCTYPE") || text.startsWith("<html")) {
-      setRows([]);
-      return;
+      if (result.status === "success") {
+        setProfile(result.data);
+        setEditMode(true);
+
+        // 🔥 HEADER PROFILE SYNC
+        localStorage.setItem(
+          "profilePhoto",
+          JSON.stringify(result.data.profilePhoto || "")
+        );
+        window.dispatchEvent(new Event("profile-updated"));
+      }
+    } catch (err) {
+      console.error("Profile fetch error", err);
+    } finally {
+      setLoading(false);
     }
-
-    const result = JSON.parse(text);
-
-    // 🔥 IMPORTANT CHANGE
-    // ❌ error throw hata diya
-    if (!res.ok) {
-      setRows([]);     // bas empty rakho
-      return;
-    }
-
-    setRows(Array.isArray(result.data) ? result.data : []);
-  } catch (error) {
-    console.error(error);
-    setRows([]);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  }, [profileId, token, Base_url]);
 
   useEffect(() => {
-    fetchProfiles();
-  }, []);
+    fetchProfile();
+  }, [fetchProfile]);
+
+  if (loading) return null;
 
   return (
     <Layout>
+      <ToastContainer position="top-right" />
+
       <Box sx={{ p: 3 }}>
-       
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
+        {/* ================= TOP CARD ================= */}
+        <Card sx={{ mb: 4 }}>
+          <CardContent>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} md={4}>
+                <Box display="flex" alignItems="center">
+                  <Avatar
+                    src={profile.profilePhoto || ""}
+                    sx={{ width: 80, height: 80, mr: 2 }}
+                  />
+                  <Box>
+                    <Typography fontWeight="bold">Super Admin</Typography>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      sx={{
+                        borderRadius: "20px",
+                        textTransform: "none",
+                        fontSize: "12px",
+                        mt: 1,
+                      }}
+                    >
+                      Active
+                    </Button>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12} md={8}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography fontWeight="bold">
+                      ☎ Mobile No.: {profile.mobileNo || ""}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography fontWeight="bold">
+                      📧 Email Id: {profile.email || ""}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography fontWeight="bold">
+                      📍 Address: {profile.address || ""}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography fontWeight="bold">
+                      📅 DOB:{" "}
+                      {profile.dob
+                        ? new Date(profile.dob).toLocaleDateString("en-IN")
+                        : ""}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+
+        {/* ================= PERSONAL DETAILS ================= */}
+        <Card>
+          <CardContent>
+            <Box display="flex" justifyContent="space-between">
+              <Typography variant="h6">Personal Details:</Typography>
+
+              {!editMode ? (
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => setOpenCreate(true)}
+                >
+                  Create
+                </Button>
+              ) : (
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => setOpenEdit(true)}
+                >
+                  Edit
+                </Button>
+              )}
+            </Box>
+
+            <TextField label="Full Name" value={profile.name || ""} fullWidth margin="normal" />
+
+            <FormControl fullWidth margin="normal">
+              <FormLabel>Gender</FormLabel>
+              <RadioGroup row value={profile.gender || ""}>
+                <FormControlLabel value="male" control={<Radio />} label="Male" />
+                <FormControlLabel value="female" control={<Radio />} label="Female" />
+                <FormControlLabel value="others" control={<Radio />} label="Others" />
+              </RadioGroup>
+            </FormControl>
+
+            <TextField label="Date of Birth" value={profile.dob || ""} fullWidth margin="normal" />
+            <TextField label="Mobile No" value={profile.mobileNo || ""} fullWidth margin="normal" />
+            <TextField label="Email Id" value={profile.email || ""} fullWidth margin="normal" />
+            <TextField label="Address" value={profile.address || ""} fullWidth margin="normal" />
+          </CardContent>
+        </Card>
+
+        {/* ================= DIALOG ================= */}
+        <CommonDialog
+          open={openCreate || openEdit}
+          onClose={() => {
+            setOpenCreate(false);
+            setOpenEdit(false);
           }}
-        >
-          <Typography variant="h5" fontWeight="bold">
-            Profile Management
-          </Typography>
-
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            sx={{ bgcolor: "#072eb0" }}
-            onClick={() => setOpenCreate(true)}
-          >
-            Add Profile
-          </Button>
-        </Box>
-        
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead sx={{ bgcolor: "#f5f5f5" }}>
-              <TableRow>
-                <TableCell><b>Name</b></TableCell>
-                <TableCell><b>Email</b></TableCell>
-                <TableCell><b>Action</b></TableCell>
-              </TableRow>
-            </TableHead>
-<TableBody>
-  {loading && (
-    <TableRow>
-      <TableCell colSpan={3} align="center">
-        <CircularProgress />
-      </TableCell>
-    </TableRow>
-  )}
-
-  {!loading &&
-    rows.length > 0 &&
-    rows.map((row, index) => (
-      <TableRow key={row?._id || index}>
-        <TableCell>{row?.name}</TableCell>
-        <TableCell>{row?.email}</TableCell>
-        <TableCell>{row?.mobileNo}</TableCell>
-      </TableRow>
-    ))}
-</TableBody>
-
-          </Table>
-        </TableContainer>
-
-        {/* Create Dialog */}
-        {openCreate && (
-         <CreateProfile
-  onClose={() => setOpenCreate(false)}
-  onCreate={async () => {
-    setOpenCreate(false);
-    await fetchProfiles();
-    toast.success("Profile created successfully");
-  }}
-/>
-
-        )}
+          dialogTitle={openCreate ? "Create Profile" : "Edit Profile"}
+          dialogContent={
+            openCreate ? (
+              <CreateProfile
+                handleCreate={fetchProfile}
+                handleClose={() => setOpenCreate(false)}
+              />
+            ) : (
+              <EditProfile
+                editData={profile}
+                handleUpdate={fetchProfile}
+                handleClose={() => setOpenEdit(false)}
+              />
+            )
+          }
+        />
       </Box>
     </Layout>
   );
-};
-
-export default ProfileList;
+}
