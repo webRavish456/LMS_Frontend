@@ -5,7 +5,7 @@ import { User, Bell } from "lucide-react";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 const Header = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -13,6 +13,7 @@ const Header = () => {
   const [profilePhoto, setProfilePhoto] = useState(null);
 
   const router = useRouter();
+  const pathname = usePathname();   // 🔥 Important
 
   const token =
     typeof window !== "undefined"
@@ -20,6 +21,17 @@ const Header = () => {
       : null;
 
   const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+
+  /* ================= DYNAMIC PAGE TITLE ================= */
+  const getPageTitle = () => {
+    if (pathname.includes("/dashboard")) return "Dashboard";
+    if (pathname.includes("/course")) return "Course";
+    if (pathname.includes("/student")) return "Student";
+    if (pathname.includes("/faculty")) return "Faculty";
+    if (pathname.includes("/attendance")) return "Attendance";
+    if (pathname.includes("/notification")) return "Notifications";
+    return "Dashboard";
+  };
 
   /* ================= LOAD PROFILE PHOTO ================= */
   useEffect(() => {
@@ -33,8 +45,6 @@ const Header = () => {
     };
 
     loadPhoto();
-
-    // 🔥 listen profile update
     window.addEventListener("profile-updated", loadPhoto);
 
     return () => {
@@ -49,9 +59,7 @@ const Header = () => {
     const fetchNotifications = async () => {
       try {
         const res = await fetch(`${BASE_URL}/notification`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!res.ok) return;
@@ -91,20 +99,16 @@ const Header = () => {
   return (
     <header className="header" style={{ position: "relative", zIndex: 1000 }}>
       <div className="header-left">
-        <h1 className="page-title">Dashboard</h1>
+        {/* 🔥 Dynamic Title */}
+        <h1 className="page-title">{getPageTitle()}</h1>
       </div>
 
-      <div
-        className="header-right"
-        style={{ display: "flex", gap: "18px", alignItems: "center" }}
-      >
-        {/* 🔔 NOTIFICATION */}
+      <div style={{ display: "flex", gap: "18px", alignItems: "center" }}>
         <div
           style={{ position: "relative", cursor: "pointer" }}
           onClick={() => router.push("/notification")}
         >
           <Bell size={22} color="#1e3a8a" />
-
           {unreadCount > 0 && (
             <span
               style={{
@@ -128,7 +132,6 @@ const Header = () => {
           )}
         </div>
 
-        {/* 👤 PROFILE IMAGE / ICON */}
         <div
           style={{ position: "relative", cursor: "pointer" }}
           onClick={() => setIsProfileOpen((prev) => !prev)}
@@ -142,7 +145,6 @@ const Header = () => {
                 height: 32,
                 borderRadius: "50%",
                 objectFit: "cover",
-                border: "1px solid #ddd",
               }}
             />
           ) : (
@@ -163,28 +165,14 @@ const Header = () => {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <Link
-                href="/profile"
-                style={{
-                  display: "block",
-                  color: "#000",
-                  textDecoration: "none",
-                  padding: "6px 4px",
-                  fontWeight: 500,
-                }}
-              >
+              <Link href="/profile" style={{ display: "block", padding: "6px 4px" }}>
                 My Profile
               </Link>
 
               <hr style={{ margin: "6px 0" }} />
 
               <div
-                style={{
-                  color: "#000",
-                  cursor: "pointer",
-                  padding: "6px 4px",
-                  fontWeight: 500,
-                }}
+                style={{ cursor: "pointer", padding: "6px 4px" }}
                 onClick={handleLogout}
               >
                 Logout

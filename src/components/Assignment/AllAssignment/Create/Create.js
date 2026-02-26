@@ -41,7 +41,7 @@ const CreateAllAssignment = ({ handleCreate, handleClose }) => {
   
   const [loading, setLoading] = useState(false);
   const isSmScreen = useMediaQuery("(max-width:768px)");
-   const token = Cookies.get("token") || localStorage.getItem("token");
+   const token =  localStorage.getItem("token");
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
   const {

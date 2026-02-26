@@ -9,7 +9,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { toast } from "react-toastify";
 
-// 1. Validation Schema (Points 1-4)
+
 const schema = yup.object().shape({
   studentName: yup.string().required("Student Name is required"),
   courseName: yup.string().required("Course Name is required"),
@@ -36,7 +36,7 @@ const CreateCertificate = ({ handleCreate, handleClose }) => {
     setLoading(true);
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
-    // FormData use karna zaroori hai kyunki hum file bhej rahe hain
+   
     const formData = new FormData();
     formData.append("studentName", data.studentName);
     formData.append("courseName", data.courseName);
@@ -48,7 +48,7 @@ const CreateCertificate = ({ handleCreate, handleClose }) => {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
-          // Note: Content-Type yahan manually mat likhna, browser FormData ke liye apne aap set kar lega
+         
         },
         body: formData,
       });

@@ -10,7 +10,7 @@ const Edit = ({ data, onClose, onUpdate }) => {
     status: "Active",
   });
 
-  // जब 'data' प्रॉप आए, तो फॉर्म में डेटा भरें
+  
   useEffect(() => {
     if (data) {
       setFormData({

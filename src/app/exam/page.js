@@ -45,7 +45,7 @@ const Exam = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
 
-  const token = Cookies.get("token");
+  const token = localStorage.getItem("token");
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
   const columns = [

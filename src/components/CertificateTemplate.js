@@ -35,7 +35,7 @@ const CertificateTemplate = ({ name, issuer, onGenerated }) => {
           fontFamily: "serif",
         }}
       >
-        {/* Certificate Content (Dynamic Text) */}
+       
         <div
           style={{
             position: "absolute",

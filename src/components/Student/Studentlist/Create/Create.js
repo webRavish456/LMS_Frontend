@@ -1,108 +1,164 @@
 'use client';
 
 import React, { useState } from "react";
-import { TextField, Grid, Button, Box, CircularProgress, MenuItem } from "@mui/material";
-import { useForm, Controller } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
+import { TextField, Grid, Button, Box, CircularProgress } from "@mui/material";
+import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 
-const schema = yup.object().shape({
-  studentName: yup.string().required("Student Name is required"),
-  emailId: yup.string().email("Invalid email").required("Email is required"),
-  mobileNumber: yup.string().required("Mobile No is required").matches(/^[0-9]{10}$/, "Must be 10 digits"),
-  dob: yup.string().required("DOB is required"),
-  gender: yup.string().required("Gender is required"),
-  address: yup.string().required("Address is required"),
-  enrollmentDate: yup.string().required("Enrollment Date is required"),
-  course: yup.string().required("Course is required"),
-  status: yup.string().required("Status is required"),
-});
+const CreateStudent = ({ handleCreate, handleClose }) => {
 
-const CreateAllStudent = ({ handleCreate, handleClose }) => {
+  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000";
   const [loading, setLoading] = useState(false);
-  const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
 
-  const { register, handleSubmit, control, formState: { errors }, reset } = useForm({
-    resolver: yupResolver(schema),
-    defaultValues: { status: "Ongoing", gender: "" }
+  const { register, handleSubmit, reset } = useForm({
+    defaultValues: {
+      studentName: "",
+      emailId: "",
+      mobileNumber: "",
+      dob: "",
+      address: "",
+      course: "",
+      status: "Ongoing"
+    }
   });
 
   const onSubmit = async (data) => {
-    setLoading(true);
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+    const token = typeof window !== "undefined"
+      ? localStorage.getItem("token")
+      : null;
+
+    if (!token) {
+      toast.error("Login required");
+      return;
+    }
 
     try {
-      const response = await fetch(`${Base_url}/studentlist`, {
+      setLoading(true);
+
+      console.log("BASE_URL:", BASE_URL);
+      console.log("Sending JSON:", data);
+
+      const response = await fetch(`${BASE_URL}/studentlist`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(data), 
+        body: JSON.stringify(data),
       });
 
-      const res = await response.json();
-
-      if (response.ok) {
-        toast.success("Student added successfully!");
-        reset(); 
-        handleCreate(); // Page refresh karega
-        handleClose();  // Modal close karega
-      } else {
-        toast.error(res.message || "Something went wrong");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Request failed");
       }
+
+      const result = await response.json();
+
+      if (result.status === "success") {
+        toast.success("Student Created Successfully ✅");
+        reset();
+        handleCreate();
+        handleClose();
+      } else {
+        toast.error(result.message || "Failed to create student");
+      }
+
     } catch (error) {
-      toast.error("Network Error: Backend server is not responding");
+      console.error("Create Student Error:", error);
+
+      if (error.message.includes("Failed to fetch")) {
+        toast.error("Cannot connect to backend server 🚨");
+      } else {
+        toast.error(error.message || "Server Error");
+      }
+
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ p: 1 }}>
+    <Box component="form" onSubmit={handleSubmit(onSubmit)}>
       <Grid container spacing={2}>
-        {/* MUI Grid v5/v6 syntax */}
-        <Grid item xs={12} sm={6}><TextField fullWidth size="small" label="Student Name" {...register("studentName")} error={!!errors.studentName} helperText={errors.studentName?.message} /></Grid>
-        <Grid item xs={12} sm={6}><TextField fullWidth size="small" label="Email Id" {...register("emailId")} error={!!errors.emailId} helperText={errors.emailId?.message} /></Grid>
-        <Grid item xs={12} sm={6}><TextField fullWidth size="small" label="Mobile Number" {...register("mobileNumber")} error={!!errors.mobileNumber} helperText={errors.mobileNumber?.message} /></Grid>
-        <Grid item xs={12} sm={6}><TextField fullWidth size="small" label="Date of Birth" type="date" InputLabelProps={{ shrink: true }} {...register("dob")} error={!!errors.dob} helperText={errors.dob?.message} /></Grid>
-        <Grid item xs={12} sm={6}>
-          <Controller name="gender" control={control} render={({ field }) => (
-            <TextField {...field} select fullWidth size="small" label="Gender" error={!!errors.gender} helperText={errors.gender?.message}>
-              <MenuItem value="male">Male</MenuItem>
-              <MenuItem value="female">Female</MenuItem>
-              <MenuItem value="others">Others</MenuItem>
-            </TextField>
-          )} />
+
+        <Grid item xs={12}>
+          <TextField
+            fullWidth
+            label="Student Name"
+            {...register("studentName")}
+            required
+          />
         </Grid>
-        <Grid item xs={12} sm={6}><TextField fullWidth size="small" label="Address" {...register("address")} error={!!errors.address} helperText={errors.address?.message} /></Grid>
-        <Grid item xs={12} sm={6}><TextField fullWidth size="small" label="Enrollment Date" type="date" InputLabelProps={{ shrink: true }} {...register("enrollmentDate")} error={!!errors.enrollmentDate} helperText={errors.enrollmentDate?.message} /></Grid>
-        <Grid item xs={12} sm={6}><TextField fullWidth size="small" label="Course" {...register("course")} error={!!errors.course} helperText={errors.course?.message} /></Grid>
-        <Grid item xs={12} sm={6}>
-          <Controller name="status" control={control} render={({ field }) => (
-            <TextField {...field} select fullWidth size="small" label="Status" error={!!errors.status} helperText={errors.status?.message}>
-              <MenuItem value="Ongoing">Ongoing</MenuItem>
-              <MenuItem value="Graduated">Graduated</MenuItem>
-              <MenuItem value="Dropped">Dropped</MenuItem>
-            </TextField>
-          )} />
+
+        <Grid item xs={12}>
+          <TextField
+            fullWidth
+            label="Email"
+            type="email"
+            {...register("emailId")}
+            required
+          />
         </Grid>
+
+        <Grid item xs={12}>
+          <TextField
+            fullWidth
+            label="Mobile Number"
+            {...register("mobileNumber")}
+            required
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <TextField
+            fullWidth
+            type="date"
+            InputLabelProps={{ shrink: true }}
+            {...register("dob")}
+            required
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <TextField
+            fullWidth
+            label="Address"
+            {...register("address")}
+            required
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <TextField
+            fullWidth
+            label="Course"
+            {...register("course")}
+            required
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <TextField
+            fullWidth
+            label="Status"
+            {...register("status")}
+          />
+        </Grid>
+
       </Grid>
-      
-      <Box mt={3} display="flex" justifyContent="flex-end" gap={2}>
-        <Button onClick={handleClose} variant="outlined" color="inherit">Cancel</Button>
-        <Button 
-          type="submit" 
-          variant="contained" 
-          disabled={loading} 
-          sx={{ bgcolor: "#072eb0", "&:hover": { bgcolor: "#051f7a" } }}
-        >
-          {loading ? <CircularProgress size={24} color="inherit" /> : "Save Student"}
+
+      <Box mt={2} textAlign="right">
+        <Button onClick={handleClose} sx={{ mr: 2 }}>
+          Cancel
+        </Button>
+
+        <Button type="submit" variant="contained" disabled={loading}>
+          {loading ? <CircularProgress size={20} /> : "Save"}
         </Button>
       </Box>
     </Box>
   );
 };
 
-export default CreateAllStudent;
+export default CreateStudent;

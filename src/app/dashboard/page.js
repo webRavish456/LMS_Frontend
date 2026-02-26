@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Layout from "@/components/Layout";
+import Cookies from "js-cookie";
 import {
   PieChart,
   Pie,
@@ -19,25 +21,17 @@ import {
 import { Box, Grid, Paper, Typography } from "@mui/material";
 
 export default function Dashboard() {
-  const [token, setToken] = useState(null);
-
   const [studentCourse, setStudentCourse] = useState([]);
   const [dailyExam, setDailyExam] = useState([]);
   const [teacherData, setTeacherData] = useState([]);
   const [assignmentData, setAssignmentData] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const token = Cookies.get("token");
   const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
- 
   useEffect(() => {
-    const t = localStorage.getItem("token");
-    if (t) setToken(t);
-  }, []);
-
- 
-  useEffect(() => {
-    if (!token) return;
+    if (!token || !BASE_URL) return;
 
     const fetchData = async () => {
       try {
@@ -45,70 +39,98 @@ export default function Dashboard() {
 
         const [studentRes, examRes, teacherRes, assignmentRes] =
           await Promise.all([
-            fetch(`${BASE_URL}/allstudents`, { headers }).then((r) => r.json()),
-            fetch(`${BASE_URL}/exam`, { headers }).then((r) => r.json()),
-            fetch(`${BASE_URL}/teacher`, { headers }).then((r) => r.json()),
-            fetch(`${BASE_URL}/allAssignment`, { headers }).then((r) =>
-              r.json()
-            ),
+            fetch(`${BASE_URL}/studentlist`, { headers })
+              .then((res) => res.text())
+              .then(JSON.parse),
+
+            fetch(`${BASE_URL}/exam`, { headers })
+              .then((res) => res.text())
+              .then(JSON.parse),
+
+            fetch(`${BASE_URL}/faculty`, { headers })
+              .then((res) => res.text())
+              .then(JSON.parse),
+
+            fetch(`${BASE_URL}/allAssignment`, { headers })
+              .then((res) => res.text())
+              .then(JSON.parse),
           ]);
 
-        // Students per Course
+        /* ================= STUDENTS ================= */
         if (studentRes.status === "success") {
-          const result = studentRes.data.reduce((acc, cur) => {
-            acc[cur.course] = (acc[cur.course] || 0) + 1;
+          const result = studentRes.data.reduce((acc, item) => {
+            const course = item.course;
+            acc[course] = (acc[course] || 0) + 1;
             return acc;
           }, {});
+
           setStudentCourse(
-            Object.entries(result).map(([name, value]) => ({ name, value }))
+            Object.entries(result).map(([name, value]) => ({
+              name,
+              value,
+            }))
           );
         }
 
-        // Exam per day
+        /* ================= EXAMS ================= */
         if (examRes.status === "success") {
-          const result = examRes.data.reduce((acc, cur) => {
-            const date = new Date(cur.createdAt).toLocaleDateString();
+          const dailyCounts = examRes.data.reduce((acc, item) => {
+            const date = new Date(item.createdAt).toLocaleDateString();
             acc[date] = (acc[date] || 0) + 1;
             return acc;
           }, {});
+
           setDailyExam(
-            Object.entries(result).map(([date, exam]) => ({ date, exam }))
+            Object.entries(dailyCounts).map(([date, count]) => ({
+              date,
+              exam: count,
+            }))
           );
         }
 
-        // Assignment
+        /* ================= ASSIGNMENTS ================= */
         if (assignmentRes.status === "success") {
-          const result = assignmentRes.data.reduce((acc, cur) => {
-            acc[cur.course] = (acc[cur.course] || 0) + 1;
+          const result = assignmentRes.data.reduce((acc, item) => {
+            const course = item.course;
+            acc[course] = (acc[course] || 0) + 1;
             return acc;
           }, {});
+
           setAssignmentData(
-            Object.entries(result).map(([name, value]) => ({ name, value }))
+            Object.entries(result).map(([name, value]) => ({
+              name,
+              value,
+            }))
           );
         }
 
-        // Teacher
+        /* ================= TEACHERS ================= */
         if (teacherRes.status === "success") {
-          const result = teacherRes.data.reduce((acc, cur) => {
-            const course = cur.companyDetails?.courseName;
+          const result = teacherRes.data.reduce((acc, item) => {
+            const course = item.companyDetails?.courseName;
             if (course) acc[course] = (acc[course] || 0) + 1;
             return acc;
           }, {});
+
           setTeacherData(
-            Object.entries(result).map(([name, value]) => ({ name, value }))
+            Object.entries(result).map(([name, value]) => ({
+              name,
+              value,
+            }))
           );
         }
 
         setLoading(false);
-      } catch (err) {
-        console.error("Dashboard error:", err);
+      } catch (error) {
+        console.error("Dashboard fetch error:", error);
+        setLoading(false);
       }
     };
 
     fetchData();
-  }, [token]);
+  }, [token, BASE_URL]);
 
-  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
+  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
 
   if (loading)
     return (
@@ -119,81 +141,83 @@ export default function Dashboard() {
 
   return (
     <Layout>
-    <Box sx={{ p: 3 }}>
-      <Grid container spacing={3}>
-        {/* Students */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, minHeight: 380 }}>
-            <Typography variant="h6">Students per Course</Typography>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie data={studentCourse} dataKey="value" outerRadius={80} label>
-                  {studentCourse.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Legend />
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </Paper>
-        </Grid>
+      <Box sx={{ p: 3 }}>
+        <Grid container spacing={3}>
 
-        {/* Exams */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, minHeight: 380 }}>
-            <Typography variant="h6">Exams</Typography>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={dailyExam}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Legend />
-                <Line dataKey="exam" stroke="#8884d8" />
-              </LineChart>
-            </ResponsiveContainer>
-          </Paper>
-        </Grid>
+          {/* Students */}
+          <Grid item xs={12} md={6}>
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="h6">Students per Course</Typography>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie data={studentCourse} dataKey="value" outerRadius={80} label>
+                    {studentCourse.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </Paper>
+          </Grid>
 
-        {/* Assignment */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, minHeight: 380 }}>
-            <Typography variant="h6">
-              Number of Assignments by Course
-            </Typography>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={assignmentData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="value" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
-          </Paper>
-        </Grid>
+          {/* Exams */}
+          <Grid item xs={12} md={6}>
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="h6">Exams</Typography>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={dailyExam}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Legend />
+                  <Line dataKey="exam" stroke="#8884d8" />
+                </LineChart>
+              </ResponsiveContainer>
+            </Paper>
+          </Grid>
 
-        {/* Teacher */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, minHeight: 380 }}>
-            <Typography variant="h6">Teacher per Course</Typography>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie data={teacherData} dataKey="value" outerRadius={80} label>
-                  {teacherData.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Legend />
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </Paper>
+          {/* Assignments */}
+          <Grid item xs={12} md={6}>
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="h6">
+                Number of Assignments by Course
+              </Typography>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={assignmentData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="value" fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
+            </Paper>
+          </Grid>
+
+          {/* Teachers */}
+          <Grid item xs={12} md={6}>
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="h6">Teacher per Course</Typography>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie data={teacherData} dataKey="value" outerRadius={80} label>
+                    {teacherData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </Paper>
+          </Grid>
+
         </Grid>
-      </Grid>
-    </Box>
+      </Box>
     </Layout>
   );
 }

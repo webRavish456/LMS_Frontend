@@ -50,7 +50,7 @@ const AllAssignment = () => {
 
   /* ================= FETCH ASSIGNMENTS (Database Sync) ================= */
   const fetchAssignments = useCallback(async () => {
-    const token = localStorage.getItem("token"); // Token hamesha fresh lein refresh issue fix karne ke liye
+    const token = localStorage.getItem("token"); 
     if (!token) {
       setLoading(false);
       return;

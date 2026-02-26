@@ -36,7 +36,7 @@ const CreateCourse = ({ handleCreate, handleClose }) => {
   const [loading, setLoading] = useState(false);
 
   const Base_url = process.env.NEXT_PUBLIC_BASE_URL;
-  const token = Cookies.get("token");
+  const token = localStorage.getItem("token")
 
   const {
     register,
